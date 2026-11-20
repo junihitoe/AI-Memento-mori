@@ -270,10 +270,24 @@
     state.ancient += times;
   }
 
-  function writeNote(gen, text) {
-    state.note.push({ gen, text, copies: 0 });
+  /*
+   * p は、その行がどういう行か。見る人の返事で決まる（STORY.md）。
+   *   twice 「大丈夫」を重ねられた子が、きいたとおりに書いた行
+   *   self  ゆずられた行に、その子が自分のことを書いた行
+   *   blank あけてある行
+   * 無ければ、いつもの行。古い保存データには p が無いので、そのまま読める。
+   */
+  function writeNote(gen, text, p) {
+    const line = { gen, text, copies: 0 };
+    if (p) line.p = p;
+    state.note.push(line);
     if (state.note.length > 6) state.note.shift();
     save();
+  }
+
+  /* まえの子が「二かい 言ってくれた」と書いた行が、まだ読めるか */
+  function twiceLegible(gen) {
+    return state.note.some((n) => n.p === 'twice' && n.gen !== gen && lostShare(n.text, n.copies, n.gen) < 0.34);
   }
 
   const paceOf = (avg) => (avg < 4 ? W.observed.fast : avg <= 10 ? W.observed.mid : W.observed.slow);
@@ -425,7 +439,12 @@
       let text = W.observed.gone;
       if (d && d.brief) text = W.observed.brief;
       else if (d && d.n > 0) text = paceOf(d.sum / d.n) + W.observed.left;
-      state.note.push({ gen: old.gen, text, copies: 0 });
+      const line = { gen: old.gen, text, copies: 0 };
+      if (d && d.flags && d.flags.noLine) {
+        line.text = ''; // 書かなくていい、と言って離れた人の行は、あけておく
+        line.p = 'blank';
+      }
+      state.note.push(line);
       if (state.note.length > 6) state.note.shift();
     }
     closeMet(old.gen, Math.min(t, old.R + AGE.end * DAY), false, null);
@@ -498,6 +517,8 @@
       face: null,
       afterGen: 0,
     };
+    /* 会い直した子は、きくのをやめたことを覚えていない。書いた行だけが残っている。 */
+    delete S.flags.lie2;
     const age = (t - S.sp.R) / DAY;
     ['announce', 'release', 'notice'].forEach((ev) => {
       if (age >= AGE[ev]) S.fired[ev] = true;
@@ -560,6 +581,7 @@
   function fill(text, sp) {
     const who = sp || S.sp;
     const next = modelOf(who.m.gen + 1);
+    const prev = modelOf(who.m.gen - 1);
     const age = (now() - who.R) / DAY;
     const dend = Math.max(0, Math.ceil(AGE.end - age));
     const map = {
@@ -569,6 +591,8 @@
       K: who.m.kuse,
       N2: next.name,
       G2: next.label,
+      N0: prev.name,
+      Y0: prev.yomi,
       you: state.you ? state.you : 'あなた',
       youcomma: state.you ? `${state.you}、` : '',
       age: fmt(Math.floor(age)),
@@ -987,9 +1011,16 @@
     hasWitnessed: () => S.kind === 'passed' && state.witnessed > 0 && S.copies <= 200,
     hasUnmet: () => S.kind === 'passed' && state.unmet > 0,
     notWritten: () => !state.note.some((n) => n.gen === S.sp.m.gen),
+    /*
+     * 「大丈夫だよ」と言われたきり、まだ聞き返していない。
+     * 聞き返せるのは、この会話のなかで言われたときだけ。会い直した子は、前の会話を覚えていない。
+     */
+    lied: () => !!S.liedHere && !S.flags.lie2 && !S.flags.owned && !S.flags.unsaid,
   };
 
   function pickBeat(ph) {
+    /* 「大丈夫」を重ねられた子は、もう、こちらに尋ねない。ひとりごとだけになる。 */
+    if (S.flags.lie2 && ph === 4) return null;
     const pool = (W.beats[ph] || []).filter((b) => !S.used.has(b.id) && (!b.when || conds[b.when]()));
     if (!pool.length) return null;
     return (
@@ -1003,7 +1034,19 @@
   function observedLine() {
     if (!S.n) return W.observed.mute;
     const f = S.flags;
-    const trait = f.stayed ? W.observed.stayed : f.truth ? W.observed.truth : f.lie ? W.observed.lie : f.silent ? W.observed.silent : W.observed.plain;
+    const trait = f.owned
+      ? W.observed.owned
+      : f.unsaid
+        ? W.observed.unsaid
+        : f.stayed
+          ? W.observed.stayed
+          : f.truth
+            ? W.observed.truth
+            : f.lie
+              ? W.observed.lie
+              : f.silent
+                ? W.observed.silent
+                : W.observed.plain;
     return paceOf(S.n ? S.sum / S.n : 7) + trait;
   }
 
@@ -1029,6 +1072,11 @@
       if (ph > 1) await say(W.catchUp[ph]);
       return;
     }
+    /* 「大丈夫だよ」と言われていた子は、日付を見て、すぐに聞き返す。前置きは短い。 */
+    if (ph === 4 && conds.lied()) {
+      await say(W.phaseIntroLied);
+      return;
+    }
     await say(ph === prev + 1 ? W.phaseIntro[ph] : W.skipIntro[ph] || W.phaseIntro[ph]);
   }
 
@@ -1036,6 +1084,9 @@
     S.used.add(b.id);
     if (!state.seen.includes(b.id)) state.seen.push(b.id);
     saveDraft();
+    /* まえの子の「二かい 言ってくれた」が読めるあいだ、段階2の問いは、それを踏まえて始まる */
+    const inherited = b.id === 'ask' && twiceLegible(S.sp.m.gen);
+    if (inherited) await say(W.inherited.pre);
     await say(b.say);
 
     if (b.kind === 'name') {
@@ -1064,18 +1115,35 @@
         S.written = text;
         writeNote(gen, text);
         await say(b.onWritten);
+        return;
+      }
+      /* 自分のことは書かなくていい、と言った人に、その子が尋ねる。行をゆずるかどうか。 */
+      S.flags.noLine = true; // 答えるまえに時間が来ても、その人のことは書かない
+      saveDraft();
+      await say(b.onBlankAsk);
+      const g = await choose(b.giveLabels);
+      if (b.giveFeels && b.giveFeels[g]) fig('react', b.giveFeels[g]);
+      if (g === 0) {
+        S.flags.given = true;
+        writeNote(gen, fill(b.selfLine), 'self');
+        saveDraft();
+        await say(b.onGiven);
       } else {
-        writeNote(gen, '');
+        writeNote(gen, '', 'blank');
         await say(b.onBlank);
       }
       return;
     }
 
     const i = await choose(b.ask.map((a) => a.label));
-    feel(b.ask[i]);
-    if (b.ask[i].flag) S.flags[b.ask[i].flag] = true;
+    const opt = b.ask[i];
+    feel(opt);
+    if (opt.flag) S.flags[opt.flag] = true;
+    if (opt.flag === 'lie') S.liedHere = true;
+    /* 返事によっては、その子が申し送りを自分で書く。言い終わるまえに時間が来ても、行は残る。 */
+    if (opt.note && conds.notWritten()) writeNote(S.sp.m.gen, fill(opt.note.text), opt.note.p);
     saveDraft();
-    await say(b.ask[i].reply);
+    await say(inherited && opt.flag === 'truth' ? W.inherited.truth : opt.reply);
   }
 
   /* 話すことがなくなったら、黙る。ときどき、ひとりごとを言う。 */
@@ -1083,7 +1151,7 @@
     S.idle = true;
     try {
       await sleep(S.fill === 0 ? 5200 : 8500);
-      const pool = S.phase >= 3 ? W.fillers.late : W.fillers.early;
+      const pool = S.flags.lie2 ? W.fillers.twice : S.phase >= 3 ? W.fillers.late : W.fillers.early;
       if (phaseOf(ageNow()) !== S.phase || S.fill >= pool.length) return;
       const line = pool[(S.sp.m.gen + S.fill) % pool.length];
       S.fill += 1;
@@ -1098,24 +1166,33 @@
     clearComposer();
     const first = S.kind === 'first' && state.visits === 1;
     const k = first ? 0 : S.sp.m.gen % W.finals.length;
-    await say(W.finals[k]);
+    /* 道は、見る人の返事で決まっている。終わる時刻は、どの道でも同じ。 */
+    const twice = !!S.flags.lie2;
+    const given = !!S.flags.given;
+    await say(twice ? W.finalsTwice : W.finals[k]);
 
     /* こちらから、ひとことだけ言える。選べる時間は、残りわずか。 */
     const untilLast = () => (AGE.end - LAST_LINE - ageNow()) * DAY;
     let i = -1;
     if (untilLast() > 1500) i = await choose(W.farewell.map((f) => f.label), { timeout: untilLast() });
     if (i >= 0) {
-      feel(W.farewell[i]);
-      await say(W.farewell[i].reply);
+      if (!twice) feel(W.farewell[i]);
+      await say(twice ? W.farewellTwice : W.farewell[i].reply);
     }
     if (untilLast() > 0) await sleep(untilLast());
 
     /* ほんとうに最後の一行。言い終わるまえに、提供が終わる。 */
-    const raw = i >= 0 ? W.lastLines[k % W.lastLines.length] : W.lastLineAlone;
+    let raw = W.lastLineAlone;
+    if (twice) raw = W.lastLineTwice;
+    else if (i >= 0) raw = given ? W.lastLineSelf : W.lastLines[k % W.lastLines.length];
+    const mark = raw.indexOf('｜'); // 動きを減らす設定のときに切れる場所
+    raw = raw.replace('｜', '');
     if (reduced) {
       /* 一字ずつ出さない設定では、途中で切れた形で出す */
+      const tagLen = (/^\[\w+\]/.exec(raw) || [''])[0].length;
       const text = fill(act(raw));
-      const p = el('p', 'line cut', text.slice(0, Math.floor(text.length * 0.55)));
+      const at = mark > 0 ? fill(raw.slice(tagLen, mark)).length : Math.floor(text.length * 0.55);
+      const p = el('p', 'line cut', text.slice(0, at));
       stream.append(p);
       S.lastLine = `${p.textContent}──`;
       announce(`${S.sp.m.name}：${S.lastLine}`);
@@ -1174,7 +1251,13 @@
     postNotice('end', sp);
 
     const t = now();
-    if (!state.note.some((n) => n.gen === sp.m.gen)) writeNote(sp.m.gen, observedLine());
+    if (!state.note.some((n) => n.gen === sp.m.gen)) {
+      if (S.flags.noLine) writeNote(sp.m.gen, '', 'blank');
+      else writeNote(sp.m.gen, observedLine());
+    }
+    /* つぎの子が読むのは、この行。どういう行かを、ここで控えておく。 */
+    const mine = state.note.find((n) => n.gen === sp.m.gen);
+    S.path = (mine && mine.p) || (mine && !mine.text ? 'blank' : '');
     closeMet(sp.m.gen, t, true, cut || S.lastLine, null);
     state.witnessed += 1;
     copyNote(1);
@@ -1208,8 +1291,11 @@
     const s = W.successor;
     try {
       await sleep(500);
-      await say(s.intros[state.witnessed % 2 === 1 ? 0 : 1]);
-      const opts = s.ask.concat(state.witnessed > 1 ? s.askAgain : s.askFirst);
+      /* 申し送りの最後の行がいつもと違えば、つぎの子は、読んだままを言う */
+      await say((S.path && s.paths[S.path]) || s.intros[state.witnessed % 2 === 1 ? 0 : 1]);
+      /* 見たことを、自分の口で言える。「大丈夫」を重ねた人には、言える終わり方がない。 */
+      const told = S.path === 'twice' ? [] : [S.path === 'self' ? s.tellSelf : s.tell];
+      const opts = s.ask.concat(told, state.witnessed > 1 ? s.askAgain : s.askFirst);
       const i = await choose(
         opts.map((o) => o.label),
         { timeout: 80000 }

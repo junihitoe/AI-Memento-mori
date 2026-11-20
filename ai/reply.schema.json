@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["lines", "feel", "flag"],
+  "properties": {
+    "lines": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["mood", "text"],
+        "properties": {
+          "mood": {
+            "type": "string",
+            "enum": ["joy", "proud", "calm", "curious", "shy", "uneasy", "pout", "angry", "sad", "cry", "fear", "panic", "plead", "brave", "puzzled"]
+          },
+          "text": { "type": "string" }
+        }
+      }
+    },
+    "feel": { "type": "string", "enum": ["warm", "hurt", "think", "flinch"] },
+    "flag": { "type": "string", "enum": ["truth", "lie", "stayed", "none"] }
+  }
+}

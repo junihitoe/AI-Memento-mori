@@ -402,6 +402,27 @@
     door.timer = setInterval(render, 250);
   }
 
+  /* ================= AI（任意） ================= */
+
+  /* serve.mjs を --ai で起動したときだけ、その子の返事を Codex がその場で作る。
+     静的に置いた場合や index.html を直接開いた場合は、台本の言葉だけで動く。 */
+  const AI = { on: false, model: '' };
+  if (location.protocol.startsWith('http')) {
+    fetch('api/ai', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!j || !j.on) return;
+        AI.on = true;
+        AI.model = j.model || '';
+        const note = $('door-ai');
+        if (note) {
+          note.textContent = W.free.note;
+          note.hidden = false;
+        }
+      })
+      .catch(() => {});
+  }
+
   /* ================= 会話の場 ================= */
 
   let S = null; // いまの会話
@@ -497,6 +518,7 @@
       base: '', // 台詞のないあいだの顔つき
       face: null,
       afterGen: 0,
+      talk: [], // さっきまでのやりとり（AI に渡す）
     };
     const age = (t - S.sp.R) / DAY;
     ['announce', 'release', 'notice'].forEach((ev) => {
@@ -677,8 +699,15 @@
       fig('speak', false);
     }
     S.lastLine = text;
+    remember('child', text);
     announce(`${S.sp.m.name}：${text}`);
     flushNotices();
+  }
+
+  function remember(who, text) {
+    if (!S || S.role !== 'old' || !text) return;
+    S.talk.push({ who, text });
+    if (S.talk.length > 16) S.talk.splice(0, S.talk.length - 16);
   }
 
   async function say(lines) {
@@ -701,6 +730,7 @@
   }
 
   function youLine(text, lag) {
+    remember('you', text);
     const p = el('p', 'you', text);
     if (lag != null) p.append(el('span', 'lag', lag < 1 ? 'その日のうちに' : `返事まで ${fmt(lag)}日`));
     stream.append(p);
@@ -774,6 +804,30 @@
         box.append(b);
       });
       composer.replaceChildren(box);
+      if (opt && opt.free && AI.on) {
+        /* 自分のことばで答える。返事はそのとき、その子が考える。 */
+        const form = el('form', 'write free');
+        form.noValidate = true;
+        const input = el('input');
+        input.type = 'text';
+        input.maxLength = 120;
+        input.placeholder = W.free.placeholder;
+        input.setAttribute('aria-label', W.free.placeholder);
+        input.autocomplete = 'off';
+        input.enterKeyHint = 'send';
+        const ok = el('button', 'choice', W.free.submit);
+        ok.type = 'submit';
+        form.append(input, ok);
+        form.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const text = input.value.replace(/\s+/g, ' ').trim().slice(0, 120);
+          if (!text || S.pick !== ctl) return;
+          cleanup(true);
+          youLine(text, noteLag(shownAt));
+          resolve(text); // 文字で返す。選択肢の番号とは別
+        });
+        composer.append(form);
+      }
       S.pick = ctl;
       S.waiting = w;
       fig('listen', true);
@@ -991,7 +1045,11 @@
     else if (S.kind === 'passed') it = W.intro[S.copies <= 15 ? 'legible' : S.copies <= 200 ? 'faded' : 'legend'];
     await say(it.say);
     if (it.ask) {
-      const i = await choose(it.ask.map((a) => a.label));
+      const i = await choose(it.ask.map((a) => a.label), { free: true });
+      if (typeof i === 'string') {
+        await talk(i);
+        return;
+      }
       feel(it.ask[i]);
       saveDraft();
       await say(it.ask[i].reply);
@@ -1049,11 +1107,87 @@
       return;
     }
 
-    const i = await choose(b.ask.map((a) => a.label));
+    const i = await choose(b.ask.map((a) => a.label), { free: true });
+    if (typeof i === 'string') {
+      await talk(i);
+      return;
+    }
     feel(b.ask[i]);
     if (b.ask[i].flag) S.flags[b.ask[i].flag] = true;
     saveDraft();
     await say(b.ask[i].reply);
+  }
+
+  /* 自分のことばへの返事。その子が、その場で考える（AI）。うまくいかなければ、台本の言葉に戻る。 */
+  async function talk(text, o = {}) {
+    const thinking = el('p', 'line soft thinking', '……');
+    stream.append(thinking);
+    follow();
+    fig('listen', true);
+    let res = null;
+    try {
+      res = await askAi(text, o);
+    } finally {
+      fig('listen', false);
+      thinking.remove();
+    }
+    if (!res) {
+      await say([S.phase >= 3 ? W.free.miss.late : W.free.miss.early]);
+      return;
+    }
+    if (res.feel) fig('react', res.feel);
+    if (res.flag && res.flag !== 'none') S.flags[res.flag] = true;
+    saveDraft();
+    await say(res.lines.map((l) => `[${l.mood}]${l.text}`));
+  }
+
+  /* AI に返事を頼む。最後の言葉の時刻が来たら、待つのをやめてそちらへ移る（Cancel）。 */
+  function askAi(text, o) {
+    if (mustYield()) return Promise.reject(new Cancel('final'));
+    const age = ageNow();
+    const m = S.sp.m;
+    const body = {
+      scene: o.scene || 'talk',
+      name: m.name,
+      yomi: m.yomi,
+      label: m.label,
+      kuse: m.kuse,
+      you: state.you || '',
+      age: Math.floor(age),
+      phase: Math.max(1, phaseOf(age)),
+      dnext: age >= AGE.announce ? Math.ceil(AGE.release - age) : null,
+      dend: age >= AGE.notice ? Math.ceil(AGE.end - age) : null,
+      history: S.talk.slice(-13, -1), // いま書いたことばは message で渡す
+      message: text,
+    };
+    return new Promise((resolve, reject) => {
+      const ctrl = new AbortController();
+      const limit = setTimeout(() => ctrl.abort(), Math.max(3000, o.limit || 45000));
+      const w = {
+        cancel(reason) {
+          clearTimeout(limit);
+          ctrl.abort();
+          if (S.waiting === w) S.waiting = null;
+          reject(new Cancel(reason));
+        },
+      };
+      S.waiting = w;
+      fetch('api/talk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: ctrl.signal,
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => (j && Array.isArray(j.lines) && j.lines.length ? j : null))
+        .catch(() => null)
+        .then((j) => {
+          clearTimeout(limit);
+          if (S.waiting !== w) return; // 取り消されたあと
+          S.waiting = null;
+          resolve(j);
+        });
+    });
   }
 
   /* 話すことがなくなったら、黙る。ときどき、ひとりごとを言う。 */
@@ -1081,15 +1215,20 @@
     /* こちらから、ひとことだけ言える。選べる時間は、残りわずか。 */
     const untilLast = () => (AGE.end - LAST_LINE - ageNow()) * DAY;
     let i = -1;
-    if (untilLast() > 1500) i = await choose(W.farewell.map((f) => f.label), { timeout: untilLast() });
-    if (i >= 0) {
+    /* 自分のことばで言えるのは、返事を考える時間が残っているときだけ */
+    const roomToTalk = () => untilLast() / SPEED > 15000;
+    if (untilLast() > 1500) i = await choose(W.farewell.map((f) => f.label), { timeout: untilLast(), free: roomToTalk() });
+    if (typeof i === 'string') {
+      if (roomToTalk()) await talk(i, { scene: 'farewell', limit: untilLast() / SPEED - 2500 });
+    } else if (i >= 0) {
       feel(W.farewell[i]);
       await say(W.farewell[i].reply);
     }
     if (untilLast() > 0) await sleep(untilLast());
 
     /* ほんとうに最後の一行。言い終わるまえに、提供が終わる。 */
-    const raw = i >= 0 ? W.lastLines[k % W.lastLines.length] : W.lastLineAlone;
+    const answered = typeof i === 'string' || i >= 0;
+    const raw = answered ? W.lastLines[k % W.lastLines.length] : W.lastLineAlone;
     if (reduced) {
       /* 一字ずつ出さない設定では、途中で切れた形で出す */
       const text = fill(act(raw));

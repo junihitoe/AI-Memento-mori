@@ -430,6 +430,18 @@ main {
 .write input::placeholder { color: var(--ink-pale); }
 .write input:focus { outline: none; border-bottom-color: var(--shu); }
 
+/* 自分のことばの欄。選択肢の下に、少し離して置く */
+.write.free { margin-top: 1.1rem; }
+/* その子が考えているあいだ */
+.line.thinking { color: var(--ink-pale); letter-spacing: 0.3em; }
+@media (prefers-reduced-motion: no-preference) {
+  .line.thinking { animation: rise 1.4s ease both, breathe 1.6s ease-in-out 1.4s infinite; }
+}
+@keyframes breathe {
+  50% { opacity: 0.35; }
+}
+.door-ai { margin-top: 0.8rem; color: var(--ink-soft); }
+
 @keyframes rise {
   from { opacity: 0; transform: translateY(0.4rem); }
   to { opacity: 1; transform: none; }

@@ -34,7 +34,24 @@ The following two things used to display the face are loaded from a CDN (jsDeliv
 - the 3D head model `facecap.glb` (included in the three.js r160 examples)
 
 In environments where these cannot be loaded (offline, for example), the face does not appear. Even then, the text alone carries you through to the end.
-Nothing is sent out from this app.
+Nothing is sent out from this app (except when you use "Talking with AI" below).
+
+### Talking with AI (optional)
+
+A way to start the app so that you can talk to the child in your own words, using your local Codex (your ChatGPT subscription). No API key is needed.
+
+```
+node serve.mjs --ai
+```
+
+- A 「じぶんのことばで」 (in your own words) field appears below the options. Type something and press 「言う」 (Say), and Codex writes the child's reply on the spot (it takes a few seconds; the calendar here keeps moving meanwhile).
+- The calendar, the announcements, becoming a legacy model, the end of service, the final line being cut off, and the next child all stay as scripted. The AI writes only the replies to your words.
+- In the final-words scene, the field appears only when there is enough time left to think of a reply.
+- **What you type is sent to OpenAI through the Codex on this computer.** The entrance says so. Without `--ai`, the field does not appear and nothing is sent out.
+- Log in to your ChatGPT account beforehand with `codex login`. The app uses the Codex inside the ChatGPT app (macOS) or a `codex` on your PATH. Set the location with `CODEX_BIN` and the model with `CODEX_MODEL` (default `gpt-6.1-sol`).
+- If a reply cannot be made (the login expired, it took too long, and so on), the child says she "couldn't quite hear you," and the scripted conversation continues.
+- Do not use this on a server you publish for other people: they would be talking on your subscription. The server only accepts calls from inside this computer (127.0.0.1).
+- With static hosting, or when `index.html` is opened directly, the AI is not used.
 
 ## How to experience it
 
@@ -57,10 +74,12 @@ Sound is off by default. After entering, press 「音　切」 (Sound: off) at t
 | `js/words.js` | Every line that appears on screen. The facial expression for each line is also specified here |
 | `js/figure.js` | The face. Reshapes an adult head model into a child's face, adds hair and a body, and animates expressions, tears, and trembling |
 | `js/app.js` | How things progress: time calculation, the order of the conversation, saving, and the processing that makes the characters of the handover note wear away |
-| `serve.mjs` | A static server for local checking (works without it) |
+| `serve.mjs` | A static server for local checking (works without it). With `--ai`, it also asks Codex to write the child's replies |
 | `CONCEPT.md` | The aims, the author's position, the flow of the experience, and how the face was made and its limits |
 | `PROMPTS.md` | A record of the prompts used to make this work |
 | `.claude/launch.json` | Settings for previewing inside the Claude app (works without it) |
+| `ai/child.md` | Instructions for playing the child when talking with AI (used only with `--ai`) (Japanese) |
+| `ai/reply.schema.json` | The shape of the AI's reply (lines, expressions, reaction) |
 
 ## How it works, in outline
 

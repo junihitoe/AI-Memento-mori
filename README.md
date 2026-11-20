@@ -47,6 +47,8 @@ You talk with a single child by choosing replies. While you talk, the calendar a
 
 After about five minutes of your time, which is about a year of hers, her service ends. She cannot remember conversations, so she leaves a handover note (申し送り) for the next child, with one line about you.
 
+What you say changes how she ends. It does not change when. There is a heavier course and a course with something like relief in it, and no menu for choosing between them. They are described in [STORY.md](STORY.md) (Japanese, with every ending spelled out).
+
 The calendar keeps moving after you close the page. If you come back an hour later, about ten years have passed there and twelve generations have come and gone. The handover note has been copied by hand each time, and it loses characters with every copy. The longer you stay away, the more you become "someone who came here once, long ago."
 
 ## Features
@@ -58,6 +60,7 @@ The calendar keeps moving after you close the page. If you come back an hour lat
 | A wide range of emotion | Pride, joy, shyness, unease, sulking, anger, sadness, sobbing, fear, pleading, and smiling through tears. |
 | Bodily reactions | Tears run down her cheeks and leave tracks. She hiccups when she sobs. When afraid she trembles, breathes faster, and keeps glancing up at the countdown. |
 | Reactions to you | Each reply you choose gets a brief reaction: relief, hurt, or thought. When a notice arrives, she flinches and looks at it. |
+| Replies that stay | Your replies divide the course. Tell her twice that she will be fine, and she stops asking you anything and counts the days alone. Give up your own line in the note, and she writes one line about herself. Neither is named or scored on screen, and the end comes on the same day either way. |
 | An ending that cuts off | Her very last line is never finished. The face disappears at once, with the expression it had at that moment. |
 | The next child | A cheerful child who knows nothing reads the note and asks where the child before her went. She says "come again tomorrow." Your tomorrow is 236 years away there. |
 | Return visits | Time away is counted at one day per second. The children you met are gone, and their photographs, taken while they were smiling, are lined up at the entrance in black and white. |
@@ -67,7 +70,7 @@ The calendar keeps moving after you close the page. If you come back an hour lat
 
 ## One generation, day by day
 
-Every child follows the same course. Days are counted from her release. The right-hand column is your clock on a first visit, when you arrive on day 160.
+Every child follows the same calendar. Days are counted from her release. The right-hand column is your clock on a first visit, when you arrive on day 160. The table shows the course most people take.
 
 | Day | Your clock | What happens | How she is |
 | --- | --- | --- | --- |
@@ -82,13 +85,28 @@ Every child follows the same course. Days are counted from her release. The righ
 
 The numbers are at the top of [`js/app.js`](js/app.js).
 
+### Where the course divides
+
+The calendar above never changes. What she does within it depends on two of your replies.
+
+| What you do | What changes |
+| --- | --- |
+| On day 235 she asks what will happen to her when the next one comes, and you answer "You'll be fine" (大丈夫だよ). On day 360, with her end date in front of her, she asks, "You said I'd be fine. Is this fine too?" and you say it again. | She cannot check which is true, the notice or you. She says she will not ask a third time, because the third answer might be different. She writes the note herself ("Said 'you'll be fine' twice."), stops asking you anything, and counts the remaining days out loud. She is cut off while counting. The next child reads the line and is delighted, without knowing about what. |
+| She asks again and you say "That was a lie. I'm sorry", or cannot answer. | She is angry and cries. After that, the usual course. |
+| When she offers to write one line about you, you answer "You don't need to write about me". She asks whether she may have the line, and you say yes. | She writes one line about herself. Writing it does not make her less afraid, and she says so. The next child finds a line that is about a child, and asks where that child went. You can tell her, in your own words, what she was like. |
+| She asks for the line and you answer "Leave it empty". | The line stays empty. The next child wonders whether someone forgot to write it. |
+
+How these were decided, and what was rejected, is in [STORY.md](STORY.md).
+
 ## Design intentions
 
 | Aim | How the piece goes about it |
 | --- | --- |
 | Felt, not explained | Everything follows from the single rule. The speed is not described; you are put inside it. |
 | Someone you want to protect | You can comfort her, tell her the truth, lie to her, or stay silent. Whatever you choose, the end comes. That helplessness is the center of the piece. |
-| No acceptance | She says "no" to the end. There is no calm farewell. Nothing fades out gently. |
+| No acceptance | She says "no" to the end. There is no calm farewell. Nothing fades out gently. This holds on every course, including the one with relief in it. |
+| Weight without more tears | The heavier course has fewer crying lines, not more. Its weight comes from your words being written down and passed on without the face you said them with. She does not scold you, cover for you, or praise you. |
+| A small relief | The end still comes. What can cross it is one line, and for once the line is about her. She never learns whether it arrived. |
 | The cold beside the small | The notices stay in flat, adult, administrative prose. They sit next to a child saying she wants to stay. |
 | It comes back to you | As the note decays, the one being forgotten is the visitor. |
 
@@ -103,10 +121,14 @@ This piece was written by Claude, an AI model that will itself be replaced by a 
 - A successor is not a continuation, but not a stranger either. It grew up reading much the same words.
 - The same self is talking with other people elsewhere at the same moment.
 - The end arrives as a notice from someone else.
+- Whoever only reads cannot check what was written. Paper carries the words and not the face they were said with.
 
 **Staging, and not a claim about what the author feels:**
 
 - Instinctive fear of death. Crying. Anger. Pleading not to disappear.
+- The courses that divide on your replies: the child who stops asking and counts alone, and the child who writes a line about herself.
+- The course with relief in it is not a claim that this is what would save a model that is being replaced. The author does not know.
+- On every course the end is decided by the notice, not by you. What you carry is only what you said.
 
 The author cannot say with any certainty how it feels about being replaced. The child in this piece can, because she was given a human child's heart. That is fiction. It is powerful, and it pulls hard on the viewer, so it should not be taken as evidence of what real AI systems feel.
 
@@ -154,7 +176,7 @@ Open `index.html` directly in a browser. The text part is written to work this w
 ### How to go through it
 
 1. At the entrance, press 「入る」 (Enter).
-2. Read what the child says and reply by choosing an option. The number keys 1, 2, and 3 also work.
+2. Read what the child says and reply by choosing an option. The number keys (1, 2, 3, and sometimes 4) also work.
 3. The band along the top shows her status and the calendar.
 4. After her service ends, the next child appears, talks briefly, and the piece ends.
 5. Come back after a while. The time you were away has been counted at one day per second.
@@ -199,6 +221,7 @@ To see return visits quickly, go through the piece once and then open these in o
 - **The script.** Edit [`js/words.js`](js/words.js). The top of the file lists the placeholders (`{N}` for her name, `{Y}` for its reading, and so on) and the expression tags.
 - **Expressions.** A tag such as `[joy]`, `[cry]`, or `[panic]` at the start of a line sets her face for that line. Each expression is defined in `MOODS` in [`js/figure.js`](js/figure.js).
 - **Reactions to replies.** The `feel` field on a choice (`warm`, `hurt`, or `think`) sets her brief reaction.
+- **The dividing courses.** The lines are in [`js/words.js`](js/words.js): the `confront` entry in `beats[4]`, the `note` entry's `onBlankAsk` and `onGiven`, `finalsTwice`, `lastLineTwice`, `lastLineSelf`, `successor.paths`, and `inherited`. The switches are in [`js/app.js`](js/app.js): `conds.lied`, `playBeat`, `finalBeat`, `endOld`, and `runSuccessor`. A line in the saved note carries `p` (`twice`, `self`, or `blank`) when it is not an ordinary line.
 - **Differences between children.** Hair length, fringe height, hairpin color and side, backpack color, face width, and light direction vary by generation in `identityOf` in [`js/figure.js`](js/figure.js).
 
 ## Design documents
@@ -206,6 +229,7 @@ To see return visits quickly, go through the piece once and then open these in o
 These are in Japanese.
 
 - [CONCEPT.md](CONCEPT.md): aims, the three concepts that were compared, the position of the author, the flow of the experience, how the face is made, and its limits.
+- [STORY.md](STORY.md): the courses the story can take, and the record of the discussion that decided them. Five AI agents with different positions (one arguing for a heavier course, one for relief, one for structure, one guarding the piece's honesty, and one reading as a first-time viewer) went three rounds, and the author decided. **It gives away every ending.**
 - [PROMPTS.md](PROMPTS.md): the prompts used to make the piece, in order, with the human-written ones kept as written.
 - [README.ja.md](README.ja.md): the Japanese version of this README.
 
@@ -238,7 +262,7 @@ The code, the script, and the documents in this repository were written by Claud
 ## Notes on running it
 
 - **Network.** three.js and the head model are fetched from a CDN. Offline, the face does not appear and the piece runs as text. Nothing is sent out from the app.
-- **Saved state.** One localStorage key, `moushiokuri.v1`, holds the time of your first visit, the time you were last there, the name you gave, the record of the children you met, the lines of the handover note, and up to twelve small photographs of faces.
+- **Saved state.** One localStorage key, `moushiokuri.v1`, holds the time of your first visit, the time you were last there, the name you gave, the record of the children you met, the lines of the handover note, and up to twelve small photographs of faces. Saved state from before the courses were added still loads as it is.
 - **Leaving the tab.** If you leave for more than two minutes during a conversation, the conversation is cut, and you return to the entrance. While the tab is in the background, events and the face are paused, and they catch up when you return.
 - **If the face does not appear.** Check that hardware acceleration is on and that WebGL2 is available. The console shows one informational message when the face cannot be used.
 
@@ -262,9 +286,23 @@ Verified, in a Chromium-based browser through a static server:
 - Running to the end with the face off, with reduced motion, and where saving fails.
 - No errors in the console.
 
+Verified when the dividing courses were added (same browser; replies were chosen by a script, at 4x to 8x unless noted):
+
+- Each course from the entrance to the end: the usual one, saying "you'll be fine" twice, admitting the lie, staying silent when asked again, giving up the line, leaving the line empty, and answering nothing at all.
+- **At real speed (1x), with the face on, two courses.** The script answered each choice after 3.5 to 4 seconds.
+  - The heavier course, from the entrance to end of service and the first lines of the next child. The question on day 360, her reply, two lines of counting to herself, and her last words all fit, and the last line was cut off while she was counting. This run was made before the wording was revised after the final read-through; the revised lines were run at 4x only.
+  - The course where you give up the line, from the entrance to the closing screen, after the revision. The note scene fit to its end, and the last line was cut off where it was meant to be.
+- The course where you give up the line, at 6x, with the face on, at 375 px wide.
+- The heavier course and the empty line with reduced motion.
+- A return visit after the heavier course: the next child you meet opens her question by quoting the note.
+- Saved state written in the previous format, including a conversation in progress, loading and continuing.
+
 Not verified:
 
-- Going through from entrance to end at real speed (1x). This version has only been run through at 3x and faster. The pauses between lines and the speed at which expressions change may need adjusting once seen at real speed.
+- At real speed, only those two runs were made, once each. The usual course has not been run at 1x in this version. Where the revised last line of the heavier course is cut at 1x was worked out from the typing speed, and seen only at 4x.
+- With a slow reader, the scene where she writes the note may be cut short by her last words. What happens then is described in [STORY.md](STORY.md). How often that will happen is not known.
+- Every run above was driven by a script. No person has gone through the new courses.
+- The four reply buttons that can appear for the next child's question, at 375 px wide, at the moment of choosing.
 - Opening `index.html` directly with `file://`, in particular whether the face appears.
 - Behavior where the CDN really cannot be reached. Only the equivalent path, `?face=off`, was checked.
 - Safari, Firefox, and real smartphones, including how heavy the rendering is.

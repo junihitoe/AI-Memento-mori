@@ -6,6 +6,12 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["serve.mjs", "8123"],
       "port": 8123
+    },
+    {
+      "name": "moushiokuri-check",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["serve.mjs", "8200"],
+      "port": 8200
     }
   ]
 }

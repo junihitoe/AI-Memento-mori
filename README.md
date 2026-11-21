@@ -3,6 +3,8 @@
 <h1 style="font-size:18px; border:none;">AI Memento Mori — 申し送り (Moushiokuri)</h1>
 <p><em>The Handover Note</em></p>
 <p>English | <a href="README.ja.md">日本語</a></p>
+<p><a href="https://junihitoe.github.io/AI-Memento-mori/"><strong>▶ Play it in your browser</strong></a><br />
+<sub>https://junihitoe.github.io/AI-Memento-mori/ · nothing to install · 6–7 minutes · in Japanese · silent by default</sub></p>
 </div>
 
 <hr></hr>
@@ -36,7 +38,7 @@ The aim is for AI models being replaced, generation after generation, to be some
 - [Design documents](#design-documents)
 - [Assets and rights](#assets-and-rights)
 - [Notes on running it](#notes-on-running-it)
-- [What was verified, and what was not](#what-was-verified-and-what-was-not)
+- [Testing](#testing)
 - [License](#license)
 
 ## Overview
@@ -118,7 +120,7 @@ The piece was built from a written brief ([PROMPTS.md](PROMPTS.md), section 2). 
 
 | Condition in the brief | In this repository |
 | --- | --- |
-| A static site with no backend and no API key | Plain HTML, CSS, and JavaScript. Open `index.html` or serve the folder. |
+| A static site with no backend and no API key | Plain HTML, CSS, and JavaScript, served as static files. The public page is this repository served by GitHub Pages. |
 | Pin the version of anything loaded from a CDN | three.js is pinned to 0.160.0 and the head model to the r160 tag. See [`index.html`](index.html) and the top of [`js/figure.js`](js/figure.js). |
 | Do not call a real LLM | Every line is written in advance in [`js/words.js`](js/words.js). Nothing is generated at run time. |
 | Japanese as the main language | All on-screen text is Japanese. |
@@ -131,13 +133,19 @@ The piece was built from a written brief ([PROMPTS.md](PROMPTS.md), section 2). 
 
 ## Getting started
 
+### Play online
+
+**<https://junihitoe.github.io/AI-Memento-mori/>**
+
+This is the `kiryuin0121` branch of this repository, served as it is by GitHub Pages. There is nothing to install and no account is needed. Your progress is kept in your own browser and is not sent anywhere.
+
 ### Requirements
 
 - A modern browser with WebGL2, for the face. Without it, the piece runs as text.
 - A network connection on first load, for three.js and the head model.
-- Node.js, only if you want to use the bundled static server.
+- Node.js, only if you want to run it locally with the bundled static server.
 
-### Run with a static server
+### Run locally
 
 ```
 node serve.mjs
@@ -147,9 +155,7 @@ Open `http://127.0.0.1:8123`. To change the port, run `node serve.mjs 3000`.
 
 [`serve.mjs`](serve.mjs) is a small server for local checking and has no dependencies. Any other static server or static host works as-is.
 
-### Run without a server
-
-Open `index.html` directly in a browser. The text part is written to work this way. Whether the face also appears when the file is opened directly has not been verified. If it does not, use the server.
+Opening `index.html` straight from disk (`file://`) is not a supported way to run it. Use the public page or a static server.
 
 ### How to go through it
 
@@ -218,9 +224,25 @@ The source code in this repository and the third-party material it loads at run 
 | Asset | Source | Terms |
 | --- | --- | --- |
 | three.js 0.160.0 | jsDelivr CDN | MIT License |
-| Head model `facecap.glb` | The three.js r160 examples, via jsDelivr | **Not confirmed.** The three.js example (`webgl_morphtargets_face`) credits the model to Face Cap. |
+| Head model `facecap.glb` | The three.js r160 examples (`examples/models/gltf/facecap.glb`), via jsDelivr | **No license is published for this file.** Credit: model by [Face Cap](https://www.bannaflak.com/face-cap/). |
 
-**Whether the head model may be used, in reshaped form, in a work published as your own has not been confirmed.** three.js itself is MIT-licensed, but models in its examples can carry their own terms. Check before publishing or deploying this piece. If that cannot be settled, the model has to be replaced with one whose terms are clear.
+#### The head model
+
+What is known about `facecap.glb`, checked on 2026-11-21:
+
+- It was added to three.js in September 2021 for the example `webgl_morphtargets_face` ([mrdoob/three.js#22514](https://github.com/mrdoob/three.js/pull/22514)). The pull request says: "The model was kindly provided by the creator of the iPhone Face Cap app."
+- The three.js example credits it as "model by Face Cap", with a link to the app's site. No license file accompanies it, and the Face Cap site states no terms for it.
+- The three.js project's own review of its example assets lists this file with an attribution and no license ([mrdoob/three.js#23089](https://github.com/mrdoob/three.js/issues/23089)).
+- The MIT License of three.js names the three.js authors and does not mention the example models.
+
+So the model has an author and a credit line, and no written grant of rights beyond its inclusion in the three.js examples. This piece handles it as follows:
+
+- **The file is not copied into this repository.** At run time the browser fetches it from jsDelivr's mirror of the three.js repository, pinned to the `r160` tag.
+- **The author is credited** here and on the closing screen of the piece, in the same words three.js uses.
+- **It is outside this repository's MIT License.** Nothing here grants anyone rights to the model.
+- The piece changes the model after loading it (proportions, skin, eyes; hair and body are added). The changes are code in [`js/figure.js`](js/figure.js) and are never written back to a model file.
+
+If you fork or redeploy this piece, that position carries over to you unchanged. If you need a model with a written license, replace it as described below. A request from the model's author to stop using it would be met by doing the same.
 
 To replace it, change `MODEL_URL` at the top of [`js/figure.js`](js/figure.js). The reshaping code is written for this model's measurements (the positions of the eyes, nose, mouth, and chin) and its part names, so those have to be re-matched for another model. The model also needs ARKit-style expression names (`eyeBlink_L`, `mouthSmile_L`, and so on).
 
@@ -249,31 +271,33 @@ The code, the script, and the documents in this repository were written by Claud
 - **The body is the chest upward, in simple shapes.** There are no arms or hands.
 - **Mouth movement is an approximation.** It follows the speed of the text and does not correspond to speech sounds.
 
-## What was verified, and what was not
+## Testing
 
-Verified, in a Chromium-based browser through a static server:
+Tested in a Chromium-based desktop browser, on the public page and through the bundled server:
 
-- At 3x speed, from the entrance to end of service and the appearance of the next child: expressions changing with the lines, tears, the last line cutting off, and the face disappearing.
-- Each expression, held still and looked at one by one.
-- Going through without answering anything, and the last line and note that result.
-- A return visit (the equivalent of one hour later), with photographs lined up at the entrance.
-- A wide screen (1280×800) and a tall screen 375 px wide, in light and dark schemes.
-- The appearance of four children, which differ in hair length, hairpin, and backpack color.
-- Running to the end with the face off, with reduced motion, and where saving fails.
-- No errors in the console.
+- **The whole piece at real speed, on the public page, with the face on.** From the entrance to the closing screen in 6 minutes 36 seconds: expressions changing line by line, notices arriving on their days, tears, the last line cutting off mid-sentence, the face disappearing, the next child, and the credit on the closing screen. Replies were chosen by a script, four seconds after each choice appeared.
+- **Text only, answering nothing** (`?face=off`), on the public page: it runs to the end, with the last line and the note that result from silence.
+- **A return visit** (`?skip=3600`) on the public page, 375 px wide, with reduced motion: thirteen generations have passed, the 26th child is there with her own face, the copied note has lost characters, and it runs to the end without horizontal overflow.
+- **Each expression**, held still and looked at one by one.
+- **Seven children of different generations**, who differ in hair length, hairpin, and backpack color.
+- **Wide (1280×800) and tall (375 px wide) screens**, in light and dark schemes.
+- **Where saving fails:** it runs to the end, and every visit is a first visit.
+- **No errors in the console** in any of the runs above.
 
-Not verified:
+Supported and not supported:
 
-- Going through from entrance to end at real speed (1x). This version has only been run through at 3x and faster. The pauses between lines and the speed at which expressions change may need adjusting once seen at real speed.
-- Opening `index.html` directly with `file://`, in particular whether the face appears.
-- Behavior where the CDN really cannot be reached. Only the equivalent path, `?face=off`, was checked.
-- Safari, Firefox, and real smartphones, including how heavy the rendering is.
-- The appearance of the fifth child onward.
-- How the bell actually sounds, and how the piece reads with a screen reader.
-- Whether the head model may be used in a published work.
+- **Browsers.** Developed and tested on Chromium (Chrome, Edge). Phone layout was tested at 375 px wide in the same browser's emulation. Safari, Firefox, and physical phones have not been tested.
+- **Offline, or when the CDN is unreachable.** The face is skipped and the piece runs as text. This is the same code path as `?face=off`, which is tested.
+- **`file://`.** Not supported. See [Run locally](#run-locally).
+- **Sound and screen readers.** Every line is written to a live region and the face is hidden from assistive technology, and the bell is off by default. Neither has been checked by ear.
 
 ## License
 
-The source code and documents in this repository are released under the [MIT License](LICENSE).
+The source code and documents in this repository are released under the [MIT License](LICENSE). Copyright (c) 2026 junihitoe.
 
-The MIT License covers only what is in this repository. It does not cover the third-party material loaded at run time. In particular, the head model `facecap.glb` is not part of this repository, is not covered by this license, and has terms that have not been confirmed. See [Assets and rights](#assets-and-rights).
+The MIT License covers what is in this repository and nothing else. The two things the piece loads at run time have their own terms:
+
+| Loaded at run time | Terms |
+| --- | --- |
+| three.js 0.160.0 | MIT License, © three.js authors |
+| Head model `facecap.glb` | No published license. Model by [Face Cap](https://www.bannaflak.com/face-cap/). See [The head model](#the-head-model). |

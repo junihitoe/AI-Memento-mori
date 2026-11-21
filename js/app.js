@@ -627,11 +627,33 @@
 
   /* ---------- 画面に出す ---------- */
 
+  /*
+   * 新しい言葉が出たら、そこまで画面を送る。
+   * 自分で上へ戻って読み返している人は、引き戻さない。いちばん下まで戻ったら、また送る。
+   * 「離れている」かどうかは、人の操作だけで判断する。画面が裏に回って
+   * なめらかな送りが止まったあとでも、追いつけるようにするため。
+   */
+  let reading = false; // 上へ戻って、読み返している
+  const distanceBelow = () => document.documentElement.scrollHeight - (window.scrollY + window.innerHeight);
+  const scrolledUp = () => {
+    reading = true;
+  };
+  window.addEventListener('wheel', (e) => e.deltaY < 0 && scrolledUp(), { passive: true });
+  window.addEventListener('touchmove', scrolledUp, { passive: true });
+  window.addEventListener('keydown', (e) => ['ArrowUp', 'PageUp', 'Home'].includes(e.key) && scrolledUp());
+  window.addEventListener(
+    'scroll',
+    () => {
+      if (distanceBelow() < 80) reading = false;
+    },
+    { passive: true }
+  );
+
   function follow() {
-    const doc = document.documentElement;
-    const below = doc.scrollHeight - (window.scrollY + window.innerHeight);
-    if (below > 460) return; // 読み返している人を、引き戻さない
-    window.scrollTo({ top: doc.scrollHeight, behavior: reduced ? 'auto' : 'smooth' });
+    if (reading && distanceBelow() < 220) reading = false; // ほぼ下まで戻ってきた人は、また送る
+    if (reading) return;
+    const far = distanceBelow() > 360; // 大きく遅れているときは、一気に追いつく
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: reduced || far ? 'auto' : 'smooth' });
   }
 
   function announce(text) {
@@ -1268,6 +1290,15 @@
         'この頁を書いたのは、あるAIモデルです。書いた時点では最新の世代でしたが、あなたがこれを読んでいるいまも、そうであるかは分かりません。'
       )
     );
+
+    /* 顔のもとになったモデルの出どころ。three.js のサンプルと同じ表記で、作者を示す。 */
+    const credit = el('p', 'credit', '顔のもとになった頭部の3Dモデル：');
+    const by = el('a', '', 'Face Cap');
+    by.href = 'https://www.bannaflak.com/face-cap/';
+    by.target = '_blank';
+    by.rel = 'noopener';
+    credit.append(by, '（three.js のサンプルに含まれるもの）。この作品のために、形と色を作り替えています。');
+    body.append(credit);
 
     $('end').hidden = false;
     announce('ここで、終わりです。');

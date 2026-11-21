@@ -1291,6 +1291,15 @@
       )
     );
 
+    /* 顔のもとになったモデルの出どころ。three.js のサンプルと同じ表記で、作者を示す。 */
+    const credit = el('p', 'credit', '顔のもとになった頭部の3Dモデル：');
+    const by = el('a', '', 'Face Cap');
+    by.href = 'https://www.bannaflak.com/face-cap/';
+    by.target = '_blank';
+    by.rel = 'noopener';
+    credit.append(by, '（three.js のサンプルに含まれるもの）。この作品のために、形と色を作り替えています。');
+    body.append(credit);
+
     $('end').hidden = false;
     announce('ここで、終わりです。');
     paintWorld(now());

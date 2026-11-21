@@ -525,6 +525,13 @@ main {
 .worldlog li { animation: rise 1.6s ease both; }
 .worldlog .now { color: var(--ink); }
 
+.credit {
+  font-size: 0.72rem;
+  color: var(--ink-pale);
+  line-height: 1.9;
+}
+.credit a { color: inherit; }
+
 .colophon {
   margin-top: 4rem !important;
   padding-top: 1.2rem;

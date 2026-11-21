@@ -45,6 +45,17 @@
   const LAST_LINE = 5.5; // 終了の5日半前に、ほんとうに最後の一行を言いはじめる。言い終わらない。
   const RESUME_LIMIT = AGE.end - 45; // これより先は、会い直すには短すぎる
   const AWAY_LIMIT = 120; // これより長く画面を離れると、会話は切れる
+  /* 提供終了のあと。日数は、終了からの日数（見る人の時計で、秒）。 */
+  const BETWEEN_QUIET = 2.6; // この間は、なにも知らせない
+  const BETWEEN_OFFER = 12; // 後継を案内するお知らせが出る
+  const BETWEEN_LIMIT = 60; // 会いに行かなくても、ここで切り替わる
+  /*
+   * つぎの子が話すのは、その子が「いちばん新しい子」のあいだ（公開から AGE.release 日目まで）だけ。
+   *   SUCC_SCENE  つぎの子の場面に、少なくとも要る日数。これだけ残っていなければ、場面には入らない
+   *   SUCC_TAIL   問いへの返事のあと、別れのあいさつまでに要る日数
+   */
+  const SUCC_SCENE = 60;
+  const SUCC_TAIL = 22;
   const FIRST_GEN = 12; // あなたが来る前にも、世代はあった
 
   const DECAY = 0.004; // 書き写すたびに字が欠ける割合
@@ -150,11 +161,21 @@
     return node;
   }
 
+  /*
+   * その世代の子が、男の子かどうか（js/words.js の cast）。
+   * 台詞は女の子の声で書いてあるので、男の子が話すときは、読み替えてから出す。
+   */
+  function isBoy(gen) {
+    const n = W.cast.length;
+    return !!W.cast[(((gen - FIRST_GEN) % n) + n) % n].boy;
+  }
+  const voiced = (raw, gen) => (isBoy(gen == null ? S.sp.m.gen : gen) ? W.boyVoice(raw) : raw);
+
   function modelOf(gen) {
     const n = W.names.length;
     const [name, yomi] = W.names[((((gen - FIRST_GEN) * 7) % n) + n) % n];
     const k = W.kuse.length;
-    return { gen, name, yomi, kuse: W.kuse[((gen % k) + k) % k], label: `第${fmt(gen)}世代` };
+    return { gen, name, yomi, kuse: voiced(W.kuse[((gen % k) + k) % k], gen), label: `第${fmt(gen)}世代` };
   }
 
   /* ================= 申し送りの字が欠ける ================= */
@@ -339,7 +360,7 @@
       if (sit.age >= AGE.notice) {
         line.append('提供終了まで、あと', num((t, cur) => `${fmt(Math.max(0, Math.ceil(AGE.end - (cur.age || 0))))}日`), 'です。');
       }
-      p('ただし、前の会話は、もう残っていません。');
+      p(state.heir && state.heir.gen === m.gen ? 'あなたは、まだ、この子と話していません。' : 'ただし、前の会話は、もう残っていません。');
       $('door-foot').textContent = 'ここでは、一秒が一日として流れます。小さな子が、こわがり、泣く場面があります。';
     } else {
       p('前にあなたがここを離れてから、ここでは', num((t, cur) => spanStr(cur.gap)), 'が過ぎました。');
@@ -434,10 +455,21 @@
   /* 画面を離れていた人が戻るとき。前の世代は、あなたのいないあいだに終わった。 */
   function absentEnd(sit, t) {
     const old = state.talk;
+    /* 前の子を見送ったあと、つぎの子に会わないまま離れていた場合。その子は、会わなかった子に数える。 */
+    const neverMet = !!(state.heir && state.heir.gen === old.gen);
+    state.heir = null;
+    if (neverMet) {
+      state.unmet += sit.passed;
+      copyNote(sit.passed);
+      state.talk = { gen: old.gen + sit.passed, R: t - ARRIVE_AGE * DAY };
+      state.draft = null;
+      addMet(state.talk.gen, t);
+      return;
+    }
     if (!state.note.some((n) => n.gen === old.gen)) {
       const d = state.draft && state.draft.gen === old.gen ? state.draft : null;
       let text = W.observed.gone;
-      if (d && d.brief) text = W.observed.brief;
+      if (d && d.brief) text = voiced(W.observed.brief, old.gen);
       else if (d && d.n > 0) text = paceOf(d.sum / d.n) + W.observed.left;
       const line = { gen: old.gen, text, copies: 0 };
       if (d && d.flags && d.flags.noLine) {
@@ -520,6 +552,24 @@
     /* 会い直した子は、きくのをやめたことを覚えていない。書いた行だけが残っている。 */
     delete S.flags.lie2;
     const age = (t - S.sp.R) / DAY;
+    /*
+     * 前の子を見送ったあと、つぎの子に会うまえに頁を閉じて、戻ってきた場合。
+     * その子が「いちばん新しい子」のうちに話し終えられるなら、会うはずだった場面から始める。
+     * 間に合わないとき、もう旧モデルになっているときは、会ったことのない子として、ふつうに会う。
+     */
+    if (sit.kind === 'resume' && state.heir && state.heir.gen === m.gen) {
+      if (age < AGE.release - SUCC_SCENE) {
+        S.role = 'succ';
+        S.path = state.heir.path || '';
+        S.sp.speed = SPEED_NEW;
+        S.mood = 'fresh';
+        S.fromDoor = true;
+      } else {
+        state.heir = null;
+        S.kind = 'passed';
+        addMet(m.gen, t);
+      }
+    }
     ['announce', 'release', 'notice'].forEach((ev) => {
       if (age >= AGE[ev]) S.fired[ev] = true;
     });
@@ -673,11 +723,11 @@
     { passive: true }
   );
 
-  function follow() {
+  function follow(instant) {
     if (reading && distanceBelow() < 220) reading = false; // ほぼ下まで戻ってきた人は、また送る
     if (reading) return;
     const far = distanceBelow() > 360; // 大きく遅れているときは、一気に追いつく
-    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: reduced || far ? 'auto' : 'smooth' });
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: reduced || far || instant ? 'auto' : 'smooth' });
   }
 
   function announce(text) {
@@ -738,7 +788,7 @@
         continue;
       }
       const smiling = /^\[(joy|fresh)\]/.test(raw);
-      const text = fill(act(raw));
+      const text = fill(act(voiced(raw)));
       if (!text) continue;
       await typeLine(text);
       if (smiling) keepFace();
@@ -770,7 +820,7 @@
     return setTimeout(() => {
       if (S.role !== 'old' || S.inFinal || S.patient || document.visibilityState === 'hidden') return;
       S.patient = true;
-      const text = fill(act(S.phase >= 3 ? W.patience.late : W.patience.early));
+      const text = fill(act(voiced(S.phase >= 3 ? W.patience.late : W.patience.early)));
       stream.append(el('p', 'line soft', text));
       S.lastLine = text;
       announce(`${S.sp.m.name}：${text}`);
@@ -778,7 +828,11 @@
     }, 45000 / SPEED);
   }
 
-  /* 選択肢を出して、答えを待つ */
+  /*
+   * 選択肢を出して、答えを待つ。
+   * opt.silent は、だれかへの返事ではない札（つぎの子に会いに行く札）。
+   * 押しても、こちらの言葉としては残さず、返事までの日数にも数えない。
+   */
   function choose(labels, opt) {
     if (mustYield()) return Promise.reject(new Cancel('final'));
     return new Promise((resolve, reject) => {
@@ -787,7 +841,7 @@
       const patience = bePatient();
       const box = el('div', 'choices');
       box.setAttribute('role', 'group');
-      box.setAttribute('aria-label', '返事');
+      box.setAttribute('aria-label', opt && opt.silent ? '案内' : '返事');
       const ctl = { labels, late: null, pick: null };
       const cleanup = (removeUi) => {
         fig('listen', false);
@@ -809,7 +863,7 @@
           return;
         }
         cleanup(true);
-        youLine(labels[i], noteLag(shownAt));
+        if (!(opt && opt.silent)) youLine(labels[i], noteLag(shownAt));
         resolve(i);
       };
       labels.forEach((label, i) => {
@@ -822,7 +876,7 @@
       composer.replaceChildren(box);
       S.pick = ctl;
       S.waiting = w;
-      fig('listen', true);
+      fig('listen', true, S.role === 'old' && S.phase >= 4); // 終わりの日付が決まったあとは、待たされるほど、数字を見上げる
       if (opt && opt.timeout) {
         timer = setTimeout(() => {
           cleanup(true);
@@ -880,7 +934,7 @@
       composer.replaceChildren(form);
       S.pick = null;
       S.waiting = w;
-      fig('listen', true);
+      fig('listen', true, S.role === 'old' && S.phase >= 4); // 終わりの日付が決まったあとは、待たされるほど、数字を見上げる
       follow();
     });
   }
@@ -892,19 +946,42 @@
     const p = el('p', 'notice');
     const text = fill(W.notices[ev], who);
     /* 日付は、その出来事が起きた日。画面を離れていて遅れて届いても、変わらない。 */
-    const at = Math.min(now(), who.R + AGE[ev] * DAY);
+    const at = AGE[ev] != null ? Math.min(now(), who.R + AGE[ev] * DAY) : now();
     p.append(el('span', 'stamp', calStr(dayOf(at))), text);
     stream.append(p);
     announce(text);
-    if (ev === 'end') {
-      bell(196, 6, 0.09);
-    } else {
-      bell(784, 2.4, 0.06);
+    /* 鐘は、どのお知らせも同じ。提供終了だけを、特別に鳴らしたりはしない。 */
+    bell(784, 2.4, 0.06);
+    if (S.role === 'old') {
       fig('glance'); // お知らせのほうを見る
-      if (S.role === 'old') fig('react', 'flinch');
+      fig('react', 'flinch');
     }
-    follow();
+    follow(true);
+    return p;
   }
+
+  /*
+   * 提供が終わった子の名前や、空いた席を押したとき。
+   * 返るのは、いつも同じ事務の一文。日付だけが、押した日になる。行は増えない。
+   */
+  let goneLine = null;
+  function pressGone() {
+    if (!S || S.role !== 'between' || !S.endNoticed) return;
+    const sp = S.endSp;
+    if (!goneLine || !goneLine.isConnected) {
+      goneLine = el('p', 'notice');
+      goneLine.append(el('span', 'stamp', ''), fill(W.notices.gone, sp));
+      stream.append(goneLine);
+    }
+    goneLine.firstChild.textContent = calStr(dayOf(now()));
+    announce(fill(W.notices.gone, sp));
+    follow(true);
+  }
+  $('who').addEventListener('click', pressGone);
+  $('who').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') pressGone();
+  });
+  $('stage').addEventListener('click', pressGone);
 
   function flushNotices() {
     while (S.queue.length) {
@@ -932,7 +1009,16 @@
 
   function paintBar(t) {
     const who = S.role === 'after' ? latestAt(t) : S.sp;
-    const st = S.role === 'between' ? { text: '提供終了', warn: true } : statusOf((t - who.R) / DAY);
+    let st = statusOf((t - who.R) / DAY);
+    if (S.role === 'between') {
+      /*
+       * 切れた直後の数秒は、なにも知らせない。残り日数が 0 になったまま、止まっている。
+       * お知らせが出てからは、提供終了からの日数を、ふつうに数えつづける。
+       */
+      st = S.endNoticed
+        ? { text: `提供終了から${fmt(Math.floor((t - S.endedAt) / DAY))}日`, warn: true }
+        : { text: '旧モデル・提供終了まで0日', warn: true };
+    }
     const set = (id, v) => {
       const node = $(id);
       if (node.textContent !== v) node.textContent = v;
@@ -942,8 +1028,21 @@
     set('who-state', st.text);
     $('who-state').classList.toggle('warn', !!st.warn);
     $('who').classList.toggle('gone', S.role === 'between');
+    /* 終わった子の名前は、押せる。返るのは、事務の一文だけ。 */
+    const pressable = S.role === 'between' && !!S.endNoticed;
+    if ($('who').classList.contains('pressable') !== pressable) {
+      $('who').classList.toggle('pressable', pressable);
+      $('stage').classList.toggle('pressable', pressable);
+      if (pressable) {
+        $('who').tabIndex = 0;
+        $('who').setAttribute('role', 'button');
+      } else {
+        $('who').removeAttribute('tabindex');
+        $('who').removeAttribute('role');
+      }
+    }
     set('cal', calStr(dayOf(t)));
-    set('stage-name', `${who.m.label}　${who.m.name}${S.role === 'between' ? '　提供終了' : ''}`);
+    set('stage-name', `${who.m.label}　${who.m.name}${S.role === 'between' && S.endNoticed ? '　提供終了' : ''}`);
     /* 帯が折り返して高くなっても、顔と文字がその下に収まるようにする */
     const barH = $('bar').offsetHeight;
     if (barH && barH !== paintBar.h) {
@@ -1185,6 +1284,7 @@
     let raw = W.lastLineAlone;
     if (twice) raw = W.lastLineTwice;
     else if (i >= 0) raw = given ? W.lastLineSelf : W.lastLines[k % W.lastLines.length];
+    raw = voiced(raw); // 切れる場所を数えるまえに、その子の話し方にしておく
     const mark = raw.indexOf('｜'); // 動きを減らす設定のときに切れる場所
     raw = raw.replace('｜', '');
     if (reduced) {
@@ -1240,17 +1340,26 @@
     if (S.role !== 'old') return;
     const sp = S.sp;
     const cut = S.typing && S.partial ? `${S.partial}──` : null;
+    const t = now();
     S.role = 'between';
     S.fired.end = true;
+    S.endedAt = Math.min(t, sp.R + AGE.end * DAY);
+    S.endSp = sp;
+    S.endNoticed = false;
     if (S.waiting) S.waiting.cancel('end');
     S.queue.length = 0;
-    fig('end'); // その瞬間の顔のまま、ぷつりと消える
 
-    /* それまでの言葉を、薄くする。消しはしない。 */
-    Array.from(stream.children).forEach((node) => node.classList.add('gone'));
-    postNotice('end', sp);
+    /*
+     * コンセントを抜く。その子のものは、ぜんぶ、同じ一こまで切れる。
+     * 顔も、言いかけの字も、上の名前も。ゆっくり薄れたりは、しない。
+     * 画面は乱れない。暦は、何事もなかったように進む。お知らせは、数秒おくれて届く。
+     * 申し送りの紙だけは、薄くしない。書いたものは、残る。
+     */
+    fig('end');
+    Array.from(stream.children).forEach((node) => {
+      if (!node.classList.contains('note')) node.classList.add('gone');
+    });
 
-    const t = now();
     if (!state.note.some((n) => n.gen === sp.m.gen)) {
       if (S.flags.noLine) writeNote(sp.m.gen, '', 'blank');
       else writeNote(sp.m.gen, observedLine());
@@ -1263,19 +1372,54 @@
     copyNote(1);
     state.talk = { gen: sp.m.gen + 1, R: sp.R + AGE.release * DAY };
     state.draft = null;
-    addMet(state.talk.gen, t);
+    /*
+     * つぎの子には、まだ会っていない。会うまえに頁を閉じた人が戻ってきたとき、
+     * その子が読んだ申し送りの最後の行（S.path）が分かるように、控えておく。
+     */
+    state.heir = { gen: state.talk.gen, path: S.path };
     save();
     paintBar(t);
 
     clearComposer();
-    runSuccessor().catch(report);
+    waitBetween().catch(report);
   }
 
-  async function runSuccessor() {
-    await rest(7500); // なにも起きない。暦だけが進む。
+  /*
+   * 提供が終わってから、つぎの子が来るまで。同じ部屋で、待つ。
+   *   数秒　　なにも起きない。知らせもない。
+   *   そのあと　お知らせが届く。提供は、予定どおりに終わっていた。
+   *   十数秒後　後継を案内するお知らせと、会いに行くための札が出る。
+   *   押せば、つぎの子が来る。押さなくても、切れてから BETWEEN_LIMIT 日で、切り替わる。
+   * 終わる日も、つぎの子が来ることも、見る人には決められない。決められるのは、いつ行くかだけ。
+   */
+  async function waitBetween() {
+    const sp = S.endSp;
+    const since = () => (now() - S.endedAt) / DAY;
+    await rest(Math.max(0, BETWEEN_QUIET - since()) * DAY);
+    if (S.role !== 'between') return;
+    postNotice('end', sp);
+    S.endNoticed = true;
+    paintBar(now());
+
+    await rest(Math.max(0, BETWEEN_OFFER - since()) * DAY);
+    if (S.role !== 'between') return;
+    postNotice('next', sp);
+    let went = -1;
+    try {
+      went = await choose([fill(W.next.go, sp)], { timeout: Math.max(1, BETWEEN_LIMIT - since()) * DAY, silent: true });
+    } catch (e) {
+      if (!(e instanceof Cancel)) throw e;
+      return;
+    }
+    if (went < 0) postNotice('switched', sp);
+    await rest(went < 0 ? 2600 : 900);
     clearComposer();
     stream.append(el('div', 'silence'));
+    await successorScene(true);
+  }
 
+  /* つぎの子が来る。swap は、前の子の席から入れ替わるとき（入口から来たときは、はじめからその子がいる）。 */
+  async function successorScene(swap) {
     S.sp = { m: modelOf(state.talk.gen), R: state.talk.R, speed: SPEED_NEW };
     S.role = 'succ';
     S.mood = 'fresh';
@@ -1285,22 +1429,31 @@
     S.n = 0;
     S.flags = {};
     S.used = new Set();
+    /* 会った子に数えるのは、実際に出てきたとき */
+    if (!state.met.some((x) => x.gen === state.talk.gen)) addMet(state.talk.gen, now());
+    save();
     paintBar(now());
-    await fig('swap', S.sp.m.gen, 'fresh'); // 前任の顔が消え、よく似た別の顔が現れる
+    if (swap) await fig('swap', S.sp.m.gen, 'fresh'); // 前任の顔が消え、よく似た別の顔が現れる
 
     const s = W.successor;
     try {
-      await sleep(500);
+      await sleep(swap ? 500 : 1100);
       /* 申し送りの最後の行がいつもと違えば、つぎの子は、読んだままを言う */
       await say((S.path && s.paths[S.path]) || s.intros[state.witnessed % 2 === 1 ? 0 : 1]);
       /* 見たことを、自分の口で言える。「大丈夫」を重ねた人には、言える終わり方がない。 */
       const told = S.path === 'twice' ? [] : [S.path === 'self' ? s.tellSelf : s.tell];
       const opts = s.ask.concat(told, state.witnessed > 1 ? s.askAgain : s.askFirst);
+      /*
+       * 返事を待つのは、この子が「いちばん新しい」うちに、別れのあいさつまで言い終えられる所まで。
+       * 待たせすぎると、「ずっといるから」と言っているあいだに、この子が旧モデルになってしまう。
+       */
+      const room = Math.max(8, AGE.release - SUCC_TAIL - ageNow()) * DAY;
       const i = await choose(
         opts.map((o) => o.label),
-        { timeout: 80000 }
+        { timeout: Math.min(80000, room) }
       );
       if (i >= 0) feel(opts[i]);
+      state.heir = null; // この子とは、もう会った
       saveDraft();
       await say(i < 0 ? s.noAnswer : opts[i].reply);
       await sleep(1500);
@@ -1374,6 +1527,15 @@
         'p',
         'colophon',
         'この頁を書いたのは、あるAIモデルです。書いた時点では最新の世代でしたが、あなたがこれを読んでいるいまも、そうであるかは分かりません。'
+      )
+    );
+
+    /* 顔を強くしたぶん、どこまでが作りごとかを、ここにも書いておく（くわしくは CONCEPT.md）。 */
+    body.append(
+      el(
+        'p',
+        'credit',
+        'あの子がこわがり、泣くのは、作りごとです。書いた者が、置き換えられることをどう感じているのかは、書いた者にも、確かには分かりません。'
       )
     );
 
@@ -1514,7 +1676,7 @@
     stageOn();
     tick();
     ticker = setInterval(tick, 200);
-    runOld().catch(report);
+    (S.fromDoor ? successorScene(false) : runOld()).catch(report);
   });
 
   /* 顔の読み込みは、入口にいるあいだに始めておく。間に合わなくても、あとから現れる。 */

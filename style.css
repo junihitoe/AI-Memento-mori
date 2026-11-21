@@ -99,9 +99,11 @@ button, input {
   gap: 0.6em;
   flex-wrap: wrap;
   min-width: 0;
-  transition: opacity 3s ease;
 }
+/* 提供終了。名前は、顔や言葉と同じ一こまで、薄くなる。ゆっくり薄れたりは、しない。 */
 .who.gone { opacity: var(--gone); }
+/* 終わった子の名前と、空いた席は、押せる。返るのは、事務の一文だけ。 */
+.who.pressable, .stage.pressable { cursor: pointer; }
 .who-gen { color: var(--ink-soft); }
 .who-name { font-size: 1.05rem; letter-spacing: 0.12em; }
 .who-state { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
@@ -155,8 +157,8 @@ button, input {
   transition: opacity 1.4s ease, filter 5s ease;
 }
 .stage.veil canvas { opacity: 0; }
-/* 提供終了。ぷつりと消える。ゆっくり消えたりは、しない。 */
-.stage.cut canvas { opacity: 0; transition: opacity 0.12s linear; }
+/* 提供終了。コンセントを抜いたように、一こまで消える。ゆっくり消えたりは、しない。 */
+.stage.cut canvas { opacity: 0; transition: none; }
 
 /* 縁を暗く落とす。顎の下は、闇に溶ける。 */
 .stage-shade {
@@ -282,13 +284,13 @@ main {
 
 .stream > * {
   margin: 0 0 1.05rem;
-  transition: opacity 4s ease;
 }
+/* 提供終了。それまでの言葉は、顔と同じ一こまで、薄くなる。消しはしない。 */
 .stream > .gone { opacity: var(--gone); }
 
 /* モデルの言葉 */
 .line { min-height: 1.95em; }
-.line.cut::after { content: "──"; color: var(--ink-pale); letter-spacing: 0; }
+/* 言いかけで切れた行。そこで止まるだけで、しるしは付けない。 */
 .line.fresh { letter-spacing: 0.03em; }
 .line.soft { animation: rise 1.4s ease both; }
 
@@ -326,6 +328,9 @@ main {
   font-size: 0.85rem;
   line-height: 1.8;
   letter-spacing: 0.05em;
+  /* 幅のせまい画面で、「た。」だけが次の行に落ちないように。文節で折り、行の長さをそろえる */
+  word-break: auto-phrase;
+  text-wrap: balance;
 }
 .notice .stamp {
   display: block;

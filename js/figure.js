@@ -77,48 +77,49 @@
 
   /* あなたの返事を聞いたときの、短い反応。数秒で、もとの顔に戻る。 */
   /*
-   * 返事を選ぼうとしているとき。見る人が、どの返事に手をかけているかで、顔と体が変わる。
-   * 顔だけでは、気づかれない。首のかしげ、身の乗り出し、目線、震えも、いっしょに動かす。
+   * 返事を選ぼうとしているとき。見る人が、どの返事に手をかけているかで、顔が少し変わる。
+   * 大きくは動かさない。人のように身ぶりで語らせると、この子ではなくなる。
+   * 顔が主で、首と体は、ほんの少し添えるだけ。ゆっくり移る。
    *   face 顔   pitch うつむく(+)・あごを上げる(-)   roll 首をかしげる   lean 身を乗り出す(+)・引く(-)
    *   gaze 目線（決めたときだけ。なければ、カーソルを見ている）   tremble 震え
    */
   const HINTS = {
-    /* ほっとする。顔が明るくなり、身を乗り出す */
+    /* ほっとする */
     relief: {
-      face: { mouthSmile: 0.8, cheekSquint: 0.6, browInnerUp: 0.3, browOuterUp: 0.3, jawOpen: 0.08, mouthFrown: -1, browDown: -1, mouthStretch: -0.6, mouthPress: -0.4, eyeWide: -0.2 },
-      pitch: -0.07,
-      roll: 0.08,
-      lean: 0.16,
-    },
-    /* むっとする。頬をふくらませ、そっぽを向く */
-    angry: {
-      face: { browDown: 1, mouthPucker: 0.75, cheekPuff: 1, mouthFrown: 0.6, eyeSquint: 0.4, noseSneer: 0.3, mouthSmile: -1, browInnerUp: -0.8, eyeWide: -0.5 },
-      pitch: 0.1,
-      roll: -0.13,
-      lean: -0.1,
-      gaze: { x: -0.75, y: 0.25 },
-    },
-    /* こわがる。目を見ひらき、身を引いて、震える */
-    fear: {
-      face: { eyeWide: 1, browInnerUp: 1, browOuterUp: 0.3, mouthFrown: 0.5, mouthStretch: 0.55, jawOpen: 0.16, mouthSmile: -1 },
-      pitch: 0.03,
-      roll: 0,
-      lean: -0.18,
-      tremble: 0.8,
-    },
-    /* 不安になる。眉が寄り、口を結んで、少しうつむく */
-    uneasy: {
-      face: { browInnerUp: 0.9, mouthPress: 0.55, mouthFrown: 0.4, eyeWide: 0.2, mouthSmile: -0.8 },
-      pitch: 0.08,
-      roll: -0.07,
-      lean: -0.07,
-    },
-    /* なんて言うのかな、と待つ。首をかしげて、のぞきこむ */
-    wait: {
-      face: { browOuterUp: 0.6, browInnerUp: 0.3, eyeWide: 0.45, mouthFunnel: 0.14 },
+      face: { mouthSmile: 0.45, cheekSquint: 0.3, browInnerUp: 0.18, browOuterUp: 0.12, mouthFrown: -0.6, browDown: -0.6, mouthStretch: -0.3, eyeWide: -0.1 },
       pitch: -0.03,
-      roll: 0.16,
-      lean: 0.13,
+      roll: 0.04,
+      lean: 0.06,
+    },
+    /* むっとする */
+    angry: {
+      face: { browDown: 0.6, mouthPucker: 0.4, cheekPuff: 0.55, mouthFrown: 0.35, eyeSquint: 0.2, mouthSmile: -0.6, browInnerUp: -0.4 },
+      pitch: 0.04,
+      roll: -0.05,
+      lean: -0.04,
+      gaze: { x: -0.45, y: 0.15 },
+    },
+    /* こわがる */
+    fear: {
+      face: { eyeWide: 0.6, browInnerUp: 0.65, mouthFrown: 0.3, mouthStretch: 0.25, jawOpen: 0.06, mouthSmile: -0.6 },
+      pitch: 0.01,
+      roll: 0,
+      lean: -0.07,
+      tremble: 0.25,
+    },
+    /* 不安になる */
+    uneasy: {
+      face: { browInnerUp: 0.5, mouthPress: 0.3, mouthFrown: 0.2, mouthSmile: -0.4 },
+      pitch: 0.03,
+      roll: -0.03,
+      lean: -0.03,
+    },
+    /* なんて言うのかな、と待つ */
+    wait: {
+      face: { browOuterUp: 0.3, browInnerUp: 0.15, eyeWide: 0.2 },
+      pitch: -0.01,
+      roll: 0.07,
+      lean: 0.05,
     },
   };
 
@@ -1350,15 +1351,15 @@
     const reacting = S.react && t - S.reactFrom < S.react.hold;
     if (reacting) addFace(want, S.react.face, 1);
     /* 見る人が、返事の札に手をかけている。その返事を思って、顔が変わる */
-    S.hintK = lerp(S.hintK, S.hint && !reacting ? 1 : 0, ease(dt, 7));
+    S.hintK = lerp(S.hintK, S.hint && !reacting ? 1 : 0, ease(dt, 3.5));
     const hint = S.hintFace && S.hintK > 0.01 ? S.hintFace : null;
     const hk = hint ? S.hintK : 0;
     if (hint) addFace(want, hint.face, hk);
-    const kFace = ease(dt, reacting ? 5 : hint ? 7 : 3.4);
+    const kFace = ease(dt, reacting ? 5 : 3.4);
     for (const name in dict) cur[name] = lerp(cur[name] || 0, clamp(want[name] || 0, 0, 1), kFace);
 
     /* --- 震えと、唇のわななき --- */
-    S.tremble = lerp(S.tremble, ((mood.tremble || 0) + (hint ? (hint.tremble || 0) * hk : 0)) * calmDown, ease(dt, hint ? 5 : 2));
+    S.tremble = lerp(S.tremble, ((mood.tremble || 0) + (hint ? (hint.tremble || 0) * hk : 0)) * calmDown, ease(dt, 2));
     const shake = S.tremble * (Math.sin(t * 31) * 0.6 + Math.sin(t * 47 + 1.3) * 0.4);
     const quiver = S.tremble * (0.5 + 0.5 * Math.sin(t * 23));
 
@@ -1452,7 +1453,7 @@
     const pitchTo = mood.pitch + S.gaze.y * 0.07 - lookingUp * 0.11 + averting * 0.2 + Math.sin(t * 0.23 + 1) * 0.012 * sway - hic * 0.05 + (hint ? (hint.pitch || 0) * hk : 0);
     const yawTo = -S.gaze.x * 0.14 - averting * S.avertDir * 0.09 + Math.sin(t * 0.31) * 0.022 * sway;
     const rollTo = mood.roll + S.idn.tilt + (S.listen ? 0.03 : 0) + Math.sin(t * 0.17) * 0.01 * sway + (hint ? (hint.roll || 0) * hk : 0);
-    const kHead = ease(dt, lookingUp || averting || hint ? 5 : 3);
+    const kHead = ease(dt, lookingUp || averting ? 5 : 3);
     S.head.pitch = lerp(S.head.pitch, pitchTo, kHead);
     S.head.yaw = lerp(S.head.yaw, yawTo, kHead);
     S.head.roll = lerp(S.head.roll, rollTo, kHead);
@@ -1463,7 +1464,7 @@
     pivotNeck();
 
     /* --- 体 --- */
-    S.lean = lerp(S.lean, (mood.lean || 0) + (hint ? (hint.lean || 0) * hk : 0), ease(dt, hint ? 4 : 1.6));
+    S.lean = lerp(S.lean, (mood.lean || 0) + (hint ? (hint.lean || 0) * hk : 0), ease(dt, 1.6));
     person.position.set(shake * 0.004, breath * 0.012 + hic * 0.05, S.lean * 0.9);
     body.position.y = BODY_DROP + breath * 0.016 + hic * 0.04;
     body.scale.x = 1 + breath * 0.006;

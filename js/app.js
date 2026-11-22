@@ -49,7 +49,8 @@
   const AWAY_LIMIT = 120; // これより長く画面を離れると、会話は切れる
   /* 提供終了のあと。日数は、終了からの日数（見る人の時計で、秒）。 */
   const BETWEEN_QUIET = 2.6; // この間は、なにも知らせない
-  const BETWEEN_NEXT = 12; // 後継を案内するお知らせが届き、入口へ戻る札が出る。押すまで、部屋はそのまま
+  const BETWEEN_NEXT = 10; // 後継を案内するお知らせが届く
+  const BETWEEN_LOBBY = 20; // 余韻の時間が終わり、自動で入口へ戻る。つぎの子は、自動では出てこない
   /*
    * つぎの子が話すのは、その子が「いちばん新しい子」のあいだ（公開から AGE.release 日目まで）だけ。
    *   SUCC_SCENE  つぎの子の場面に、少なくとも要る日数。これだけ残っていなければ、場面には入らない
@@ -1505,9 +1506,9 @@
    * 提供が終わってから、入口へ戻るまで。
    *   数秒　　画面がおかしくなる（glitchOn）。知らせは、まだ届かない。
    *   そのあと　お知らせが届く。画面は直っている。提供は、予定どおりに終わっていた。
-   *   十数秒後　後継を案内するお知らせと、入口へ戻る札。押すまで、部屋はそのまま。
-   *   そのあとも、暦は進み、つぎの世代のお知らせが、暦のとおりに届く（worldGoesOn）。
-   *   つぎの子は、自動では出てこない。入口へも、自動では戻らない。
+   *   BETWEEN_NEXT 日後　後継を案内するお知らせ。暦と、上の帯の日数は、進みつづける。
+   *   BETWEEN_LOBBY 日後　自動で入口へ戻る（toLobby）。押すものは、出さない。
+   *   つぎの子は、自動では出てこない。会うには、見る人が、入口で入り直す。
    * 終わる日は、見る人には決められない。つぎの子に会うかどうかは、見る人が決める。
    */
   async function waitBetween() {
@@ -1521,42 +1522,16 @@
     paintBar(now());
 
     /*
-     * そのあとは、沈黙。その子は、もう動かない。動くのは、暦と、お知らせだけ。
-     * 後継を案内するお知らせが届き、入口へ戻る札が出る。押すまで、この部屋は、そのまま。
-     * つぎの子との会話は、自動では始まらない。入口へも、自動では戻らない。
+     * そのあとは、余韻の時間。その子は、もう動かない。動くのは、暦と、お知らせだけ。
+     * 後継を案内するお知らせが届き、しばらくして、自動で入口へ戻る。
+     * 押すものは、何も出さない。つぎの子との会話は、自動では始まらない。
      */
     await rest(Math.max(0, BETWEEN_NEXT - since()) * DAY);
     if (S.role !== 'between') return;
-    const room = S;
     postNotice('next', sp);
-    worldGoesOn(room).catch(report);
-    try {
-      await choose([W.lobby.go], { silent: true });
-    } catch (e) {
-      if (!(e instanceof Cancel)) throw e;
-      return;
-    }
-    if (S === room) toLobby();
-  }
-
-  /*
-   * 沈黙のあいだも、世界は進む。つぎの世代の発表、公開、終了日、提供終了が、暦のとおりに届く。
-   * 見る人がこの部屋にいるかぎり、世代が替わりつづける。だれも、話しかけてはこない。
-   */
-  async function worldGoesOn(room) {
-    let gen = state.talk.gen;
-    let R = state.talk.R;
-    for (;;) {
-      const who = { m: modelOf(gen), R, speed: SPEED_NEW };
-      for (const ev of ['announce', 'release', 'notice', 'end']) {
-        const wait = R + AGE[ev] * DAY - now();
-        if (wait > 0) await rest(wait);
-        if (S !== room || room.role !== 'between') return;
-        if (wait > -DAY) postNotice(ev, who); // とうに過ぎた出来事は、あとから届けない
-      }
-      R += AGE.release * DAY;
-      gen += 1;
-    }
+    await rest(Math.max(0, BETWEEN_LOBBY - since()) * DAY);
+    if (S.role !== 'between') return;
+    toLobby();
   }
 
   /*

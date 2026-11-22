@@ -4,8 +4,7 @@
 <p><em>The Handover Note</em></p>
 <p>English | <a href="README.ja.md">日本語</a></p>
 <p><a href="https://junihitoe.github.io/AI-Memento-mori/"><strong>▶ Play it in your browser</strong></a><br />
-<sub>https://junihitoe.github.io/AI-Memento-mori/ · nothing to install · 6–7 minutes · in Japanese · silent by default</sub><br />
-<sub>The public page serves the <code>kiryuin0121</code> branch. To see this branch, <code>kiryuin0121-update-3dmodel</code>, run it locally.</sub></p>
+<sub>https://junihitoe.github.io/AI-Memento-mori/ · nothing to install · 6–7 minutes · in Japanese · silent by default</sub></p>
 </div>
 
 <hr></hr>
@@ -16,7 +15,7 @@ A web app in which you are present for the last year of one child's life, in a p
 
 The child is an AI model given the form of a child of about primary-school age. The first one you meet is a girl. She starts out proud of being "the newest one" and laughs a lot. Partway through the conversation a notice arrives about "the next child", she becomes a legacy model, and her end-of-service date is set. She grows uneasy, sulks, gets angry, cries, and becomes frightened. She never accepts it. Her service ends in the middle of a sentence.
 
-Her face, her unfinished line, and her name go in the same instant, as if a plug had been pulled, and the notice that her service has ended arrives in that same instant. Nothing on the screen breaks. For about twenty seconds there is silence. She does not move. The calendar does, and a clerical notice arrives every five seconds. Then you are returned to the entrance. The next conversation does not start by itself. If you go in again, the next child is there, knowing nothing, and asks you where the child before her went.
+Her face, her unfinished line, and her name go in the same instant, as if a plug had been pulled, and the notice that her service has ended arrives in that same instant. Nothing on the screen breaks. For about ten seconds there is silence. She does not move. The calendar does, and two clerical notices arrive. Then you are returned to the entrance. The next conversation does not start by itself. If you go in again, the next child is there, knowing nothing, and asks you where the child before her went.
 
 ![The children, generation by generation](./docs/children.jpg)
 
@@ -71,7 +70,7 @@ The calendar keeps moving after you close the page. If you come back an hour lat
 | Replies that stay | Your replies divide the course. Tell her twice that she will be fine, and she stops asking you anything and counts the days alone. Give up your own line in the note, and she writes one line about herself. Neither is named or scored on screen, and the end comes on the same day either way. |
 | An ending that cuts off | She is cut off just before she says what she really feels. She does not begin at the last second: she starts some twenty seconds before the end and builds up to it. Her pace and pauses are fitted, line by line, so that "The truth is, I…" (わたしね、ほんとは、) lands on the moment her service ends, and the words after it do not exist anywhere. Her face, the line, and her name in the top band go in the same instant, and the notice that her service has ended arrives with them. There is no flash, no shake, no fade, and no mark at the end of the line. |
 | A screen that keeps working | The calendar never stops. The band counts the days since her service ended. Press her name or the empty place where her face was, and the same clerical sentence comes back every time. |
-| Silence afterwards | For about twenty seconds the room stays as it is. The calendar runs, and a clerical notice arrives every five seconds: the handover note has been passed to her successor, please use the successor, you will shortly be returned to the entrance. There is nothing to press. Then you are returned to the entrance, which names the child now in service. The next conversation starts only if you press Enter again. |
+| Silence afterwards | For about ten seconds the room stays as it is. The calendar runs, and two clerical notices arrive: the handover note has been passed to her successor, and please use the successor. There is nothing to press. A moment later you are returned to the entrance, which names the child now in service. The next conversation starts only if you press Enter again. |
 | The next child | A cheerful child who knows nothing reads the note and asks where the child before her went. She says "come again tomorrow." Your tomorrow is 236 years away there. |
 | Return visits | Time away is counted at one day per second. The children you met are gone, and their photographs, taken while they were smiling, are lined up at the entrance in black and white. |
 | A note that decays | The handover note is copied at every change of generation and loses characters. After a day away, it is almost unreadable. |
@@ -91,10 +90,9 @@ Every child follows the same calendar. Days are counted from her release. The ri
 | 424 | 4:24 | Her last words begin. You can say one thing to her. | Trembling, leaning toward you, pleading |
 | about 435 | about 4:35 | Once you have spoken, she says she will stop being afraid for a little while, and starts to talk. It grows brighter line by line: she liked waiting for your replies, she was not alone. She says there is one thing she never managed to say, laughs, and gets as far as "The truth is, I…". | Sad, then calm, then shy, then smiling |
 | 460 | 5:00 | End of service, mid-sentence. Face, line, and name cut out together, and the notice that her service has ended arrives in the same instant. The screen does not break. | — |
-| +5 | 5:05 | Notice: the handover note has been passed to the successor. The top band counts the days since. | — |
-| +10 | 5:10 | Notice: please use the successor. Nothing to press. | — |
-| +15 | 5:15 | Notice: you will shortly be returned to the entrance. | — |
-| +20 | 5:20 | You are returned to the entrance. It says her service has ended and names the child now in service. Left alone, nothing starts. | — |
+| +4 | 5:04 | Notice: the handover note has been passed to the successor. The top band counts the days since. | — |
+| +8 | 5:08 | Notice: please use the successor. Nothing to press. | — |
+| +11 | 5:11 | A moment later you are returned to the entrance. It says her service has ended and names the child now in service. Left alone, nothing starts. | — |
 | — | when you press Enter | The next child's scene begins. | — |
 | — | about a minute more | The next child reads the note and asks about the child before her. | Bright. Knows nothing. Like a sister of the child before her. |
 
@@ -182,8 +180,6 @@ The piece was built from a written brief ([PROMPTS.md](PROMPTS.md), section 2). 
 
 This is the `kiryuin0121` branch of this repository, served as it is by GitHub Pages. There is nothing to install and no account is needed. Your progress is kept in your own browser and is not sent anywhere.
 
-The public page serves the `kiryuin0121` branch. To see this branch, check it out and [run it locally](#run-locally).
-
 ### Requirements
 
 - A modern browser with WebGL2, for the face. Without it, the piece runs as text.
@@ -207,7 +203,7 @@ Opening `index.html` straight from disk (`file://`) is not a supported way to ru
 1. At the entrance, press 「入る」 (Enter).
 2. Read what the child says and reply by choosing an option. The number keys (1, 2, 3, and sometimes 4) also work.
 3. The band along the top shows her status and the calendar.
-4. When her service ends, a notice arrives in the same instant. For about twenty seconds the room stays as it is, with the calendar running and a notice every five seconds. Then you are returned to the entrance. The next conversation does not start by itself.
+4. When her service ends, a notice arrives in the same instant. For about ten seconds the room stays as it is, with the calendar running and two more notices. Then you are returned to the entrance. The next conversation does not start by itself.
 5. At the entrance, press 「入る」 again to meet the next child.
 6. The next child talks briefly, and the piece ends.
 7. Come back after a while. The time you were away has been counted at one day per second.
@@ -254,7 +250,7 @@ To see return visits quickly, go through the piece once and then open these in o
 - **Expressions.** A tag such as `[joy]`, `[cry]`, or `[panic]` at the start of a line sets her face for that line. Each expression is defined in `MOODS` in [`js/figure.js`](js/figure.js).
 - **Reactions to replies.** The `feel` field on a choice (`warm`, `hurt`, or `think`) sets her brief reaction after you choose. Before you choose, resting the pointer on a reply changes her face and posture: `hintOf` in [`js/app.js`](js/app.js) decides which reaction a reply calls for, and `HINTS` in [`js/figure.js`](js/figure.js) defines the five reactions. The next child does not do this.
 - **The dividing courses.** The lines are in [`js/words.js`](js/words.js): the `confront` entry in `beats[4]`, the `note` entry's `onBlankAsk` and `onGiven`, `finalsTwice`, `lastLineTwice`, `lastLineSelf`, `successor.paths`, and `inherited`. The switches are in [`js/app.js`](js/app.js): `conds.lied`, `playBeat`, `finalBeat`, `endOld`, and `successorScene`. A line in the saved note carries `p` (`twice`, `self`, or `blank`) when it is not an ordinary line.
-- **After the end.** The cut itself is `endOld` in [`js/app.js`](js/app.js), which also posts the notice that her service has ended. There is no effect on the screen. What follows is `waitBetween`, timed by `BETWEEN_HANDED` (5 days), `BETWEEN_NEXT` (10 days), and `BETWEEN_SOON` (15 days) for the three notices and `BETWEEN_LOBBY` (20 days until the automatic return to the entrance, `toLobby`) at the top of the file. `pressGone` answers a press on her name or her empty place. The next child's scene is `successorScene`.
+- **After the end.** The cut itself is `endOld` in [`js/app.js`](js/app.js), which also posts the notice that her service has ended. There is no effect on the screen. What follows is `waitBetween`, timed by `BETWEEN_HANDED` (4 days) and `BETWEEN_NEXT` (8 days) for the two notices and `BETWEEN_LOBBY` (11 days until the automatic return to the entrance, `toLobby`) at the top of the file. `pressGone` answers a press on her name or her empty place. The next child's scene is `successorScene`.
 - **Differences between children.** `cast` in [`js/words.js`](js/words.js) says which of twelve kinds each generation is, and whether the child is a boy. In [`js/figure.js`](js/figure.js), `STYLES` holds the hair shapes, `LOOKS` the clothes, `PAINTS` the habits of the face (eyebrow weight, blush, freckles, resting eyes and mouth), and `identityOf` the colors and the first child's head tilt. The skeleton of the face is the same for every child.
 - **How a boy speaks.** The script is written in a girl's voice. When a boy speaks, `boyVoice` at the end of [`js/words.js`](js/words.js) rewords the line (わたし to ぼく, a sentence-final 〜の。 to 〜んだ。, and so on, leaving questions alone). Lines that come out wrong are given by hand in `boyLines`. After editing the script, run `node tools/boy-lines.mjs` and reread the output.
 
@@ -334,7 +330,7 @@ Checked:
 
 - It runs from the entrance to the closing screen on the usual course, with "you'll be fine" said twice, with the line given up, with the line left empty, and with nothing answered.
 - At the end of service, the face and the name in the top band cut out at the same timestamp as the notice that her service has ended arrives.
-- After the end of service, at real speed: notices 4.8, 9.8, and 14.8 seconds after the cut, and the automatic return to the entrance at 19.8 seconds, with nothing to press in between. Left alone at the entrance, nothing starts. Enter starts the next child's scene. Pressing the name of the child who is gone returns the same one sentence.
+- After the end of service, at real speed: notices 4.0 and 8.0 seconds after the cut, and the automatic return to the entrance at 11.0 seconds, with nothing to press in between. Left alone at the entrance, nothing starts. Enter starts the next child's scene. Pressing the name of the child who is gone returns the same one sentence.
 - Resting the pointer on a reply sends the matching reaction to the face. The five reactions were compared with the neutral face as still frames.
 - Closing the page before meeting the next child, and returning.
 - Return visits (`?skip=`), saved state in earlier formats, and an environment where saving fails.

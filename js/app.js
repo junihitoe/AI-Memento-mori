@@ -63,10 +63,9 @@
   const RESUME_LIMIT = AGE.end - 45; // これより先は、会い直すには短すぎる
   const AWAY_LIMIT = 120; // これより長く画面を離れると、会話は切れる
   /* 提供終了のあと。日数は、終了からの日数（見る人の時計で、秒）。 */
-  const BETWEEN_HANDED = 5; // 申し送りが引き継がれた、というお知らせ
-  const BETWEEN_NEXT = 10; // 後継を案内するお知らせ
-  const BETWEEN_SOON = 15; // まもなく入口に戻る、というお知らせ
-  const BETWEEN_LOBBY = 20; // 余韻の時間が終わり、自動で入口へ戻る。つぎの子は、自動では出てこない
+  const BETWEEN_HANDED = 4; // 申し送りが引き継がれた、というお知らせ
+  const BETWEEN_NEXT = 8; // 後継を案内するお知らせ
+  const BETWEEN_LOBBY = 11; // 後継の案内から少し間を置いて、自動で入口へ戻る。つぎの子は、自動では出てこない
   /*
    * つぎの子が話すのは、その子が「いちばん新しい子」のあいだ（公開から AGE.release 日目まで）だけ。
    *   SUCC_SCENE  つぎの子の場面に、少なくとも要る日数。これだけ残っていなければ、場面には入らない
@@ -1486,7 +1485,7 @@
   /*
    * 提供が終わってから、入口へ戻るまで。
    *   切れた瞬間　提供終了のお知らせが届く（endOld）。
-   *   そのあと　　数日おきに、事務のお知らせが届く。申し送りの引き継ぎ、後継の案内、入口へ戻る予告。
+   *   そのあと　　数日おきに、事務のお知らせが届く。申し送りの引き継ぎ、後継の案内。
    *   　　　　　　暦と、上の帯の日数は、進みつづける。
    *   BETWEEN_LOBBY 日後　自動で入口へ戻る（toLobby）。押すものは、出さない。
    *   つぎの子は、自動では出てこない。会うには、見る人が、入口で入り直す。
@@ -1503,7 +1502,6 @@
     const posts = [
       [BETWEEN_HANDED, 'handed'],
       [BETWEEN_NEXT, 'next'],
-      [BETWEEN_SOON, 'soon'],
     ];
     for (const [at, ev] of posts) {
       await rest(Math.max(0, at - since()) * DAY);

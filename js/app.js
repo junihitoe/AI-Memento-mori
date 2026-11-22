@@ -43,6 +43,8 @@
   const ARRIVE_AGE = 160; // 初めて会う相手は、公開から160日目
   const FINAL_LEAD = 36; // 終了の36日前に、最後の言葉を始める
   const LAST_LINE = 5.5; // 終了の5日半前に、ほんとうに最後の一行を言いはじめる。言い終わらない。
+  const LAST_PEAK = 9.5; // 打ち明ける直前で断たれる行は、終了の9日半前から。言いたい言葉の手前で、時刻が来る。
+  const PEAK_HUSH = 0.35; // 「ほんとは、」のあと、息を吸う間。その間に、提供が終わる。
   const RESUME_LIMIT = AGE.end - 45; // これより先は、会い直すには短すぎる
   const AWAY_LIMIT = 120; // これより長く画面を離れると、会話は切れる
   /* 提供終了のあと。日数は、終了からの日数（見る人の時計で、秒）。 */
@@ -1276,20 +1278,27 @@
     await say(twice ? W.finalsTwice : W.finals[k]);
 
     /* こちらから、ひとことだけ言える。選べる時間は、残りわずか。 */
-    const untilLast = () => (AGE.end - LAST_LINE - ageNow()) * DAY;
+    const untilLast = (lead) => (AGE.end - lead - ageNow()) * DAY;
+    const lead0 = twice ? LAST_LINE : LAST_PEAK;
     let i = -1;
-    if (untilLast() > 1500) i = await choose(W.farewell.map((f) => f.label), { timeout: untilLast() });
+    if (untilLast(lead0) > 1500) i = await choose(W.farewell.map((f) => f.label), { timeout: untilLast(lead0) });
     if (i >= 0) {
       if (!twice) feel(W.farewell[i]);
       await say(twice ? W.farewellTwice : W.farewell[i].reply);
     }
-    if (untilLast() > 0) await sleep(untilLast());
 
     /* ほんとうに最後の一行。言い終わるまえに、提供が終わる。 */
     let raw = W.lastLineAlone;
     if (twice) raw = W.lastLineTwice;
     else if (i >= 0) raw = given ? W.lastLineSelf : W.lastLines[k % W.lastLines.length];
+    const peak = raw.endsWith('｜');
+    const lead = peak ? LAST_PEAK : LAST_LINE;
+    if (untilLast(lead) > 0) await sleep(untilLast(lead));
     raw = voiced(raw); // 切れる場所を数えるまえに、その子の話し方にしておく
+    if (peak) {
+      await sayPeak(raw.slice(0, -1));
+      return;
+    }
     const mark = raw.indexOf('｜'); // 動きを減らす設定のときに切れる場所
     raw = raw.replace('｜', '');
     if (reduced) {
@@ -1305,6 +1314,45 @@
       return;
     }
     await say([raw]);
+  }
+
+  /*
+   * 打ち明ける直前で、断たれる行。
+   * こわがるのをやめ、落ち着き、笑い、ほんとうのことを言おうとする。その言葉の手前で、提供が終わる。
+   * 行の中の [..] ごとに顔つきを変え、短い行に分けて出す。
+   * 最後の「ほんとは、」を言い終えるのが、提供終了の PEAK_HUSH 日まえになるように、話す速さを合わせる。
+   * 終わる時刻は動かさない。合わせるのは、その子の話す速さのほう。
+   */
+  async function sayPeak(raw) {
+    const segs = raw.split(/(?=\[\w+\])/).filter(Boolean);
+    const texts = segs.map((s) => fill(s.replace(/^\[\w+\]/, '')));
+    if (reduced) {
+      /* 一字ずつ出さない設定では、言いかけの形で、一度に出す */
+      segs.forEach((s) => act(s));
+      const p = el('p', 'line cut', texts.join(''));
+      stream.append(p);
+      S.lastLine = `${p.textContent}──`;
+      announce(`${S.sp.m.name}：${S.lastLine}`);
+      follow();
+      return;
+    }
+    const PAUSE = 520;
+    let weight = 0;
+    texts.join('').split('').forEach((ch) => {
+      weight += '。？！'.includes(ch) ? 7 : '、…─'.includes(ch) ? 3.5 : 1;
+    });
+    const room = (AGE.end - PEAK_HUSH - ageNow()) * DAY - PAUSE * (segs.length - 1);
+    const keep = S.sp.speed;
+    S.sp.speed = Math.min(90, Math.max(20, room / weight));
+    try {
+      for (let n = 0; n < segs.length; n += 1) {
+        act(segs[n]);
+        await typeLine(texts[n]);
+        if (n < segs.length - 1) await sleep(PAUSE);
+      }
+    } finally {
+      S.sp.speed = keep;
+    }
   }
 
   async function runOld() {

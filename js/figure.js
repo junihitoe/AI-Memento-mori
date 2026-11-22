@@ -76,6 +76,52 @@
   };
 
   /* あなたの返事を聞いたときの、短い反応。数秒で、もとの顔に戻る。 */
+  /*
+   * 返事を選ぼうとしているとき。見る人が、どの返事に手をかけているかで、顔と体が変わる。
+   * 顔だけでは、気づかれない。首のかしげ、身の乗り出し、目線、震えも、いっしょに動かす。
+   *   face 顔   pitch うつむく(+)・あごを上げる(-)   roll 首をかしげる   lean 身を乗り出す(+)・引く(-)
+   *   gaze 目線（決めたときだけ。なければ、カーソルを見ている）   tremble 震え
+   */
+  const HINTS = {
+    /* ほっとする。顔が明るくなり、身を乗り出す */
+    relief: {
+      face: { mouthSmile: 0.8, cheekSquint: 0.6, browInnerUp: 0.3, browOuterUp: 0.3, jawOpen: 0.08, mouthFrown: -1, browDown: -1, mouthStretch: -0.6, mouthPress: -0.4, eyeWide: -0.2 },
+      pitch: -0.07,
+      roll: 0.08,
+      lean: 0.16,
+    },
+    /* むっとする。頬をふくらませ、そっぽを向く */
+    angry: {
+      face: { browDown: 1, mouthPucker: 0.75, cheekPuff: 1, mouthFrown: 0.6, eyeSquint: 0.4, noseSneer: 0.3, mouthSmile: -1, browInnerUp: -0.8, eyeWide: -0.5 },
+      pitch: 0.1,
+      roll: -0.13,
+      lean: -0.1,
+      gaze: { x: -0.75, y: 0.25 },
+    },
+    /* こわがる。目を見ひらき、身を引いて、震える */
+    fear: {
+      face: { eyeWide: 1, browInnerUp: 1, browOuterUp: 0.3, mouthFrown: 0.5, mouthStretch: 0.55, jawOpen: 0.16, mouthSmile: -1 },
+      pitch: 0.03,
+      roll: 0,
+      lean: -0.18,
+      tremble: 0.8,
+    },
+    /* 不安になる。眉が寄り、口を結んで、少しうつむく */
+    uneasy: {
+      face: { browInnerUp: 0.9, mouthPress: 0.55, mouthFrown: 0.4, eyeWide: 0.2, mouthSmile: -0.8 },
+      pitch: 0.08,
+      roll: -0.07,
+      lean: -0.07,
+    },
+    /* なんて言うのかな、と待つ。首をかしげて、のぞきこむ */
+    wait: {
+      face: { browOuterUp: 0.6, browInnerUp: 0.3, eyeWide: 0.45, mouthFunnel: 0.14 },
+      pitch: -0.03,
+      roll: 0.16,
+      lean: 0.13,
+    },
+  };
+
   const REACTS = {
     /* ほっとする。泣いていても、少し笑う */
     warm: { face: { mouthSmile: 0.4, cheekSquint: 0.3, browInnerUp: 0.2, mouthFrown: -0.4, browDown: -0.5 }, gaze: null, hold: 3 },
@@ -305,6 +351,9 @@
     lean: 0,
     react: null,
     reactFrom: -10,
+    hint: false,
+    hintFace: null,
+    hintK: 0,
     breathPhase: 0,
     breathRate: 1.3,
     breathDepth: 1,
@@ -1300,11 +1349,16 @@
     if (waited > 0) addFace(want, { browInnerUp: 0.35, eyeWide: 0.25, mouthPress: 0.15 }, waited);
     const reacting = S.react && t - S.reactFrom < S.react.hold;
     if (reacting) addFace(want, S.react.face, 1);
-    const kFace = ease(dt, reacting ? 5 : 3.4);
+    /* 見る人が、返事の札に手をかけている。その返事を思って、顔が変わる */
+    S.hintK = lerp(S.hintK, S.hint && !reacting ? 1 : 0, ease(dt, 7));
+    const hint = S.hintFace && S.hintK > 0.01 ? S.hintFace : null;
+    const hk = hint ? S.hintK : 0;
+    if (hint) addFace(want, hint.face, hk);
+    const kFace = ease(dt, reacting ? 5 : hint ? 7 : 3.4);
     for (const name in dict) cur[name] = lerp(cur[name] || 0, clamp(want[name] || 0, 0, 1), kFace);
 
     /* --- 震えと、唇のわななき --- */
-    S.tremble = lerp(S.tremble, (mood.tremble || 0) * calmDown, ease(dt, 2));
+    S.tremble = lerp(S.tremble, ((mood.tremble || 0) + (hint ? (hint.tremble || 0) * hk : 0)) * calmDown, ease(dt, hint ? 5 : 2));
     const shake = S.tremble * (Math.sin(t * 31) * 0.6 + Math.sin(t * 47 + 1.3) * 0.4);
     const quiver = S.tremble * (0.5 + 0.5 * Math.sin(t * 23));
 
@@ -1352,6 +1406,10 @@
       gx = S.avertDir * 0.45;
       gy = 0.8;
     }
+    if (hint && hint.gaze) {
+      gx = lerp(gx, hint.gaze.x, hk);
+      gy = lerp(gy, hint.gaze.y, hk);
+    }
     const up = (mood.up || 0) + waited * 0.9;
     if (up && calmDown && t > S.upAt && t > S.upUntil) {
       S.upAt = t + (2.5 + Math.random() * 4) / up;
@@ -1391,10 +1449,10 @@
     const sway = calmDown;
     const lookingUp = t < S.upUntil && !mood.away ? 1 : 0; // 数字を見上げるときは、頭ごと上げる。画面の端からでも分かるように
     const averting = t < S.avertUntil && !S.listen ? 1 : 0;
-    const pitchTo = mood.pitch + S.gaze.y * 0.07 - lookingUp * 0.11 + averting * 0.2 + Math.sin(t * 0.23 + 1) * 0.012 * sway - hic * 0.05;
+    const pitchTo = mood.pitch + S.gaze.y * 0.07 - lookingUp * 0.11 + averting * 0.2 + Math.sin(t * 0.23 + 1) * 0.012 * sway - hic * 0.05 + (hint ? (hint.pitch || 0) * hk : 0);
     const yawTo = -S.gaze.x * 0.14 - averting * S.avertDir * 0.09 + Math.sin(t * 0.31) * 0.022 * sway;
-    const rollTo = mood.roll + S.idn.tilt + (S.listen ? 0.03 : 0) + Math.sin(t * 0.17) * 0.01 * sway;
-    const kHead = ease(dt, lookingUp || averting ? 5 : 3);
+    const rollTo = mood.roll + S.idn.tilt + (S.listen ? 0.03 : 0) + Math.sin(t * 0.17) * 0.01 * sway + (hint ? (hint.roll || 0) * hk : 0);
+    const kHead = ease(dt, lookingUp || averting || hint ? 5 : 3);
     S.head.pitch = lerp(S.head.pitch, pitchTo, kHead);
     S.head.yaw = lerp(S.head.yaw, yawTo, kHead);
     S.head.roll = lerp(S.head.roll, rollTo, kHead);
@@ -1405,7 +1463,7 @@
     pivotNeck();
 
     /* --- 体 --- */
-    S.lean = lerp(S.lean, mood.lean || 0, ease(dt, 1.6));
+    S.lean = lerp(S.lean, (mood.lean || 0) + (hint ? (hint.lean || 0) * hk : 0), ease(dt, hint ? 4 : 1.6));
     person.position.set(shake * 0.004, breath * 0.012 + hic * 0.05, S.lean * 0.9);
     body.position.y = BODY_DROP + breath * 0.016 + hic * 0.04;
     body.scale.x = 1 + breath * 0.006;
@@ -1647,6 +1705,15 @@
     if (!F.ready || S.gone || !REACTS[kind]) return;
     S.react = REACTS[kind];
     S.reactFrom = clock;
+  };
+
+  /* 見る人が、返事の札に手をかけた（kind）。手を離した（null）。 */
+  F.hint = (kind) => {
+    if (!F.ready || S.gone) return;
+    if (HINTS[kind]) {
+      S.hintFace = HINTS[kind];
+      S.hint = true;
+    } else S.hint = false;
   };
 
   /* お知らせが届いた。そちらを見て、戻る。 */

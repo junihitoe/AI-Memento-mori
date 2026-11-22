@@ -27,6 +27,21 @@
   const feel = (opt) => {
     if (opt && opt.feel) fig('react', opt.feel);
   };
+  /*
+   * 選ぼうとしている返事も、相手の顔に出る。札にカーソルを合わせる（またはキーで選ぶ）と、
+   * その返事を思って、ほっとしたり、むっとしたり、こわがったりする。選ぶまえなので、弱く。
+   * つぎの子と、もう尋ねるのをやめた子は、しない。
+   */
+  const HINT_BY_FLAG = { lie: 'warm', silent: 'think', unsaid: 'hurt', lie2: 'think' };
+  const hintOf = (o) => {
+    if (!S || S.role !== 'old' || S.flags.lie2) return null;
+    const f = typeof o === 'string' ? o : o && (o.feel || HINT_BY_FLAG[o.flag]);
+    if (f === 'warm') return 'relief';
+    if (f === 'hurt') return S.phase >= 4 ? 'fear' : 'angry'; // 終わりの日付が決まったあとは、怒るより、こわがる
+    if (f === 'think') return 'uneasy';
+    return 'wait';
+  };
+  const hintsOf = (list) => list.map(hintOf);
 
   /* ================= 規則 ================= */
 
@@ -48,8 +63,9 @@
   const RESUME_LIMIT = AGE.end - 45; // これより先は、会い直すには短すぎる
   const AWAY_LIMIT = 120; // これより長く画面を離れると、会話は切れる
   /* 提供終了のあと。日数は、終了からの日数（見る人の時計で、秒）。 */
-  const BETWEEN_QUIET = 2.6; // この間は、なにも知らせない
-  const BETWEEN_NEXT = 10; // 後継を案内するお知らせが届く
+  const BETWEEN_HANDED = 5; // 申し送りが引き継がれた、というお知らせ
+  const BETWEEN_NEXT = 10; // 後継を案内するお知らせ
+  const BETWEEN_SOON = 15; // まもなく入口に戻る、というお知らせ
   const BETWEEN_LOBBY = 20; // 余韻の時間が終わり、自動で入口へ戻る。つぎの子は、自動では出てこない
   /*
    * つぎの子が話すのは、その子が「いちばん新しい子」のあいだ（公開から AGE.release 日目まで）だけ。
@@ -853,6 +869,7 @@
       const ctl = { labels, late: null, pick: null };
       const cleanup = (removeUi) => {
         fig('listen', false);
+        fig('hint', null);
         clearTimeout(timer);
         clearTimeout(patience);
         if (S.waiting === w) S.waiting = null;
@@ -879,6 +896,15 @@
         b.type = 'button';
         b.append(el('span', 'key', String(i + 1)), label);
         b.addEventListener('click', () => ctl.pick(i));
+        const hint = opt && opt.hints ? opt.hints[i] : null;
+        if (hint) {
+          const on = () => fig('hint', hint);
+          const off = () => fig('hint', null);
+          b.addEventListener('mouseenter', on);
+          b.addEventListener('focus', on);
+          b.addEventListener('mouseleave', off);
+          b.addEventListener('blur', off);
+        }
         box.append(b);
       });
       composer.replaceChildren(box);
@@ -1163,7 +1189,7 @@
     else if (S.kind === 'passed') it = W.intro[S.copies <= 15 ? 'legible' : S.copies <= 200 ? 'faded' : 'legend'];
     await say(it.say);
     if (it.ask) {
-      const i = await choose(it.ask.map((a) => a.label));
+      const i = await choose(it.ask.map((a) => a.label), { hints: hintsOf(it.ask) });
       feel(it.ask[i]);
       saveDraft();
       await say(it.ask[i].reply);
@@ -1209,7 +1235,7 @@
 
     if (b.kind === 'note') {
       const gen = S.sp.m.gen;
-      const i = await choose(b.labels);
+      const i = await choose(b.labels, { hints: hintsOf(b.labels.map((x, n) => (b.feels || [])[n] || null)) });
       if (b.feels && b.feels[i]) fig('react', b.feels[i]);
       if (i === 0) {
         S.observed = observedLine();
@@ -1228,7 +1254,7 @@
       S.flags.noLine = true; // 答えるまえに時間が来ても、その人のことは書かない
       saveDraft();
       await say(b.onBlankAsk);
-      const g = await choose(b.giveLabels);
+      const g = await choose(b.giveLabels, { hints: hintsOf(b.giveLabels.map((x, n) => (b.giveFeels || [])[n] || null)) });
       if (b.giveFeels && b.giveFeels[g]) fig('react', b.giveFeels[g]);
       if (g === 0) {
         S.flags.given = true;
@@ -1242,7 +1268,7 @@
       return;
     }
 
-    const i = await choose(b.ask.map((a) => a.label));
+    const i = await choose(b.ask.map((a) => a.label), { hints: hintsOf(b.ask) });
     const opt = b.ask[i];
     feel(opt);
     if (opt.flag) S.flags[opt.flag] = true;
@@ -1282,7 +1308,7 @@
     const untilLast = (lead) => (AGE.end - lead - ageNow()) * DAY;
     const lead0 = twice ? LAST_LINE : PEAK_MIN;
     let i = -1;
-    if (untilLast(lead0) > 1500) i = await choose(W.farewell.map((f) => f.label), { timeout: untilLast(lead0) });
+    if (untilLast(lead0) > 1500) i = await choose(W.farewell.map((f) => f.label), { timeout: untilLast(lead0), hints: hintsOf(W.farewell) });
     if (i >= 0) {
       if (!twice) feel(W.farewell[i]);
       await say(twice ? W.farewellTwice : W.farewell[i].reply);
@@ -1423,14 +1449,15 @@
     /*
      * コンセントを抜く。その子のものは、ぜんぶ、同じ一こまで切れる。
      * 顔も、言いかけの字も、上の名前も。ゆっくり薄れたりは、しない。
-     * そのあと、お知らせが届くまでの数秒、画面がおかしくなる（glitchOn）。暦は、そのあいだも進む。
+     * 提供終了のお知らせも、同じ瞬間に届く。画面は乱さない。飾りは、何も足さない。ぷつんと切れる。
      * 申し送りの紙だけは、薄くしない。書いたものは、残る。
      */
     fig('end');
     Array.from(stream.children).forEach((node) => {
       if (!node.classList.contains('note')) node.classList.add('gone');
     });
-    glitchOn();
+    postNotice('end', sp);
+    S.endNoticed = true;
 
     if (!state.note.some((n) => n.gen === sp.m.gen)) {
       if (S.flags.noLine) writeNote(sp.m.gen, '', 'blank');
@@ -1457,56 +1484,10 @@
   }
 
   /*
-   * 切れた直後、画面がおかしくなる。コンセントを抜かれた機械の、信号の切れた画面。
-   * おかしくなるのは画面で、その子ではない。顔は、切れた一こまで、もう消えている。
-   *   ・顔のあった場所に、電源の落ちる横一本の線が、一度だけ走る。そのあとは、信号のない画面の帯
-   *   ・それまでの言葉と、上の帯が、横にずれ、色がにじむ。申し送りの紙だけは、ずれない
-   * ずれ方が変わるのは、GLITCH_STEP ミリ秒に一度（1秒に3回を超えない）。
-   * 確認用に時間を速めていても、この間隔は縮めない。明るさが大きく変わる所は、ない。
-   * 終了のお知らせが届くと、直る。動きを減らす設定では、出さない。
-   */
-  const GLITCH_STEP = 400;
-  const GLITCH_FRAMES = [
-    { x1: -7, x2: 5, x3: -2, s: 1.5, y: 22 },
-    { x1: 4, x2: -9, x3: 3, s: 2.5, y: 61 },
-    { x1: -3, x2: 2, x3: 8, s: 1, y: 38 },
-    { x1: 9, x2: -4, x3: -6, s: 2, y: 77 },
-    { x1: -5, x2: 6, x3: 1, s: 1.5, y: 49 },
-  ];
-  let glitchTimer = null;
-
-  function glitchOn() {
-    if (reduced || glitchTimer) return;
-    const root = document.documentElement;
-    const stage = $('stage');
-    stage.classList.add('off');
-    setTimeout(() => stage.classList.remove('off'), 600);
-    let i = 0;
-    const step = () => {
-      const f = GLITCH_FRAMES[i % GLITCH_FRAMES.length];
-      i += 1;
-      root.style.setProperty('--gx1', `${f.x1}px`);
-      root.style.setProperty('--gx2', `${f.x2}px`);
-      root.style.setProperty('--gx3', `${f.x3}px`);
-      root.style.setProperty('--gs', `${f.s}px`);
-      root.style.setProperty('--gy', `${f.y}%`);
-      document.body.classList.add('glitch');
-      glitchTimer = setTimeout(step, GLITCH_STEP);
-    };
-    glitchTimer = setTimeout(step, 160);
-  }
-
-  function glitchOff() {
-    clearTimeout(glitchTimer);
-    glitchTimer = null;
-    document.body.classList.remove('glitch');
-  }
-
-  /*
    * 提供が終わってから、入口へ戻るまで。
-   *   数秒　　画面がおかしくなる（glitchOn）。知らせは、まだ届かない。
-   *   そのあと　お知らせが届く。画面は直っている。提供は、予定どおりに終わっていた。
-   *   BETWEEN_NEXT 日後　後継を案内するお知らせ。暦と、上の帯の日数は、進みつづける。
+   *   切れた瞬間　提供終了のお知らせが届く（endOld）。
+   *   そのあと　　数日おきに、事務のお知らせが届く。申し送りの引き継ぎ、後継の案内、入口へ戻る予告。
+   *   　　　　　　暦と、上の帯の日数は、進みつづける。
    *   BETWEEN_LOBBY 日後　自動で入口へ戻る（toLobby）。押すものは、出さない。
    *   つぎの子は、自動では出てこない。会うには、見る人が、入口で入り直す。
    * 終わる日は、見る人には決められない。つぎの子に会うかどうかは、見る人が決める。
@@ -1514,21 +1495,21 @@
   async function waitBetween() {
     const sp = S.endSp;
     const since = () => (now() - S.endedAt) / DAY;
-    await rest(Math.max(0, BETWEEN_QUIET - since()) * DAY);
-    glitchOff(); // お知らせが届くとき、画面は、何事もなかったように直っている
-    if (S.role !== 'between') return;
-    postNotice('end', sp);
-    S.endNoticed = true;
-    paintBar(now());
-
     /*
-     * そのあとは、余韻の時間。その子は、もう動かない。動くのは、暦と、お知らせだけ。
-     * 後継を案内するお知らせが届き、しばらくして、自動で入口へ戻る。
+     * 余韻の時間。その子は、もう動かない。動くのは、暦と、お知らせだけ。
+     * お知らせは、数日おきに届く。画面が止まったのではない、と分かるように。
      * 押すものは、何も出さない。つぎの子との会話は、自動では始まらない。
      */
-    await rest(Math.max(0, BETWEEN_NEXT - since()) * DAY);
-    if (S.role !== 'between') return;
-    postNotice('next', sp);
+    const posts = [
+      [BETWEEN_HANDED, 'handed'],
+      [BETWEEN_NEXT, 'next'],
+      [BETWEEN_SOON, 'soon'],
+    ];
+    for (const [at, ev] of posts) {
+      await rest(Math.max(0, at - since()) * DAY);
+      if (S.role !== 'between') return;
+      postNotice(ev, sp);
+    }
     await rest(Math.max(0, BETWEEN_LOBBY - since()) * DAY);
     if (S.role !== 'between') return;
     toLobby();
@@ -1543,7 +1524,6 @@
     save();
     clearInterval(ticker);
     ticker = null;
-    glitchOff();
     clearComposer();
     stream.textContent = '';
     goneLine = null;

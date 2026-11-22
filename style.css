@@ -160,48 +160,6 @@ button, input {
 /* 提供終了。コンセントを抜いたように、一こまで消える。ゆっくり消えたりは、しない。 */
 .stage.cut canvas { opacity: 0; transition: none; }
 
-/*
- * 切れた直後、画面がおかしくなる。コンセントを抜かれた機械の、信号の切れた画面。
- * おかしくなるのは画面で、その子ではない（顔は、もう出ていない）。
- * ずれ方は、app.js が 0.4 秒に一度だけ変える。ここには、くり返し動く指定は置かない。
- * 動きを減らす設定では、app.js がこの印（.off と .glitch）を付けない。
- */
-.stage::before, .stage::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-  opacity: 0;
-}
-/* 電源の落ちる線。顔の消えた場所に、横一本、一度だけ走って消える。 */
-.stage.off::before {
-  background: linear-gradient(to bottom, transparent calc(40% - 1px), rgba(255, 250, 240, 0.85) 40%, transparent calc(40% + 2px));
-  animation: power-off 0.34s ease-in both;
-}
-@keyframes power-off {
-  from { transform: scaleX(1); opacity: 0.9; }
-  to { transform: scaleX(0.02); opacity: 0; }
-}
-/* 信号のない画面。うすい走査線と、位置の変わる帯。 */
-.glitch .stage::after {
-  opacity: 1;
-  background:
-    linear-gradient(to bottom, transparent calc(var(--gy, 40%) - 7%), rgba(255, 255, 255, 0.09) var(--gy, 40%), transparent calc(var(--gy, 40%) + 1.5%)),
-    repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 4px);
-}
-/* それまでの言葉と、上の帯が、横にずれ、色がにじむ。 */
-.glitch .stream { overflow-x: clip; }
-.glitch .stream > *, .glitch .bar > * {
-  text-shadow: var(--gs, 2px) 0 rgba(255, 70, 90, 0.55), calc(var(--gs, 2px) * -1) 0 rgba(70, 200, 255, 0.5);
-}
-.glitch .stream > *:nth-child(3n + 1) { transform: translateX(var(--gx1, 0)); }
-.glitch .stream > *:nth-child(3n + 2) { transform: translateX(var(--gx2, 0)); }
-.glitch .stream > *:nth-child(3n) { transform: translateX(var(--gx3, 0)); }
-.glitch .bar > * { transform: translateX(var(--gx2, 0)); }
-/* 申し送りの紙だけは、ずれない。書いたものは、残る。 */
-.glitch .stream > .note { transform: none; text-shadow: none; }
-
 /* 縁を暗く落とす。顎の下は、闇に溶ける。 */
 .stage-shade {
   position: absolute;

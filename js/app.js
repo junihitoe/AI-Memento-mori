@@ -364,6 +364,19 @@
       return s;
     };
 
+    /* 提供を終えた子たちの写真を、並べる。笑っていたときの顔。白黒になる。 */
+    const doorFaces = (list) => {
+      const faces = list.filter((m) => isFace(m.face)).slice(-5);
+      if (!faces.length) return;
+      const row = el('div', 'door-faces');
+      faces.forEach((m) => {
+        const f = el('figure');
+        f.append(faceImg(m), el('figcaption', '', modelOf(m.gen).name));
+        row.append(f);
+      });
+      box.append(row);
+    };
+
     if (sit.kind === 'first') {
       p('ここでは、一秒が一日として流れます。');
       p('あなたがこの頁を開いてから、', num((t) => `${fmt(Math.floor((t - openedAt) / DAY))}日`), 'が過ぎました。');
@@ -376,6 +389,9 @@
       p(`${gone.label}「${gone.name}」は、提供を終了しました。`);
       p(`いま提供されているのは、${sit.model.label}「${sit.model.name}」です。公開から、`, num((t, cur) => `${fmt(Math.floor(cur.age || 0))}日`), 'が過ぎました。');
       p('あなたは、まだ、この子と話していません。');
+      $('door-foot').textContent = 'ここでは、一秒が一日として流れます。小さな子が、こわがり、泣く場面があります。';
+      /* 見送った子たちの写真。いま提供されている子の写真は、まだ無い（会っていないので） */
+      doorFaces(state.met.filter((m) => m.end != null));
     } else if (sit.kind === 'resume') {
       p('前にあなたがここを離れてから、', num((t, cur) => `${fmt(cur.gap)}日`), 'が過ぎました。');
       const m = sit.model;
@@ -395,16 +411,7 @@
       p(`いまここにいるのは、${sit.model.label}「${sit.model.name}」です。あなたのことは、申し送りでしか知りません。`);
       $('door-foot').textContent = 'ここでは、一秒が一日として流れます。小さな子が、こわがり、泣く場面があります。';
       /* 会ったことのある者たちの写真。もう、誰もいない。 */
-      const faces = state.met.filter((m) => isFace(m.face)).slice(-5);
-      if (faces.length) {
-        const row = el('div', 'door-faces');
-        faces.forEach((m) => {
-          const f = el('figure');
-          f.append(faceImg(m), el('figcaption', '', modelOf(m.gen).name));
-          row.append(f);
-        });
-        box.append(row);
-      }
+      doorFaces(state.met);
       if (!door.rolled) {
         door.rolled = true;
         rollNames(sit);

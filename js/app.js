@@ -43,7 +43,7 @@
   const ARRIVE_AGE = 160; // 初めて会う相手は、公開から160日目
   const FINAL_LEAD = 36; // 終了の36日前に、最後の言葉を始める
   const LAST_LINE = 5.5; // 終了の5日半前に、ほんとうに最後の一行を言いはじめる。言い終わらない。
-  const LAST_PEAK = 9.5; // 打ち明ける直前で断たれる行は、終了の9日半前から。言いたい言葉の手前で、時刻が来る。
+  const PEAK_MIN = 15; // 打ち明けようとする言葉には、少なくともこれだけの日数を残す。見る人のひとことを待つのは、そこまで
   const PEAK_HUSH = 0.35; // 「ほんとは、」のあと、息を吸う間。その間に、提供が終わる。
   const RESUME_LIMIT = AGE.end - 45; // これより先は、会い直すには短すぎる
   const AWAY_LIMIT = 120; // これより長く画面を離れると、会話は切れる
@@ -1279,7 +1279,7 @@
 
     /* こちらから、ひとことだけ言える。選べる時間は、残りわずか。 */
     const untilLast = (lead) => (AGE.end - lead - ageNow()) * DAY;
-    const lead0 = twice ? LAST_LINE : LAST_PEAK;
+    const lead0 = twice ? LAST_LINE : PEAK_MIN;
     let i = -1;
     if (untilLast(lead0) > 1500) i = await choose(W.farewell.map((f) => f.label), { timeout: untilLast(lead0) });
     if (i >= 0) {
@@ -1291,9 +1291,12 @@
     let raw = W.lastLineAlone;
     if (twice) raw = W.lastLineTwice;
     else if (i >= 0) raw = given ? W.lastLineSelf : W.lastLines[k % W.lastLines.length];
+    /*
+     * 打ち明けようとする言葉は、見る人のひとことを聞いたら、すぐに始まる。終わる間際まで待たない。
+     * ほかの行（数える子、返事を求める子）は、終わりの LAST_LINE 日まえから。
+     */
     const peak = raw.endsWith('｜');
-    const lead = peak ? LAST_PEAK : LAST_LINE;
-    if (untilLast(lead) > 0) await sleep(untilLast(lead));
+    if (!peak && untilLast(LAST_LINE) > 0) await sleep(untilLast(LAST_LINE));
     raw = voiced(raw); // 切れる場所を数えるまえに、その子の話し方にしておく
     if (peak) {
       await sayPeak(raw.slice(0, -1));
@@ -1320,8 +1323,9 @@
    * 打ち明ける直前で、断たれる行。
    * こわがるのをやめ、落ち着き、笑い、ほんとうのことを言おうとする。その言葉の手前で、提供が終わる。
    * 行の中の [..] ごとに顔つきを変え、短い行に分けて出す。
-   * 最後の「ほんとは、」を言い終えるのが、提供終了の PEAK_HUSH 日まえになるように、話す速さを合わせる。
-   * 終わる時刻は動かさない。合わせるのは、その子の話す速さのほう。
+   * 残りの時間ぜんぶを使って、だんだん盛り上がる。最後の「ほんとは、」を言い終えるのが、
+   * 提供終了の PEAK_HUSH 日まえになるように、話す速さと、行のあいだの間を合わせる。
+   * 終わる時刻は動かさない。合わせるのは、その子のほう。
    */
   async function sayPeak(raw) {
     const segs = raw.split(/(?=\[\w+\])/).filter(Boolean);
@@ -1336,19 +1340,32 @@
       follow();
       return;
     }
-    const PAUSE = 520;
-    let weight = 0;
-    texts.join('').split('').forEach((ch) => {
-      weight += '。？！'.includes(ch) ? 7 : '、…─'.includes(ch) ? 3.5 : 1;
-    });
-    const room = (AGE.end - PEAK_HUSH - ageNow()) * DAY - PAUSE * (segs.length - 1);
+    const weigh = (text) => {
+      let w = 0;
+      text.split('').forEach((ch) => {
+        w += '。？！'.includes(ch) ? 7 : '、…─'.includes(ch) ? 3.5 : 1;
+      });
+      return w;
+    };
+    const weights = texts.map(weigh);
+    /* 最後の行は、終わりの「、」を打った所で言い終わり。そのあとの間は、数えない */
+    weights[weights.length - 1] -= 3.5;
     const keep = S.sp.speed;
-    S.sp.speed = Math.min(90, Math.max(20, room / weight));
     try {
       for (let n = 0; n < segs.length; n += 1) {
+        /*
+         * 行ごとに、残りの時間を測り直す。ふだんの速さで話し、余った時間は、行のあいだの間にまわす。
+         * 足りなければ、早口になる。画面の都合で遅れても、つぎの行で取り戻す。
+         */
+        const room = (AGE.end - PEAK_HUSH - ageNow()) * DAY;
+        const left = weights.slice(n).reduce((a, b) => a + b, 0);
+        const gaps = segs.length - 1 - n;
+        const unit = Math.min(SPEED_OLD * 1.15, Math.max(18, ((room - 420 * gaps) / left) * 0.96));
+        const pause = gaps ? Math.min(2200, Math.max(420, (room - unit * left) / gaps)) : 0;
+        S.sp.speed = unit;
         act(segs[n]);
         await typeLine(texts[n]);
-        if (n < segs.length - 1) await sleep(PAUSE);
+        if (gaps) await sleep(pause);
       }
     } finally {
       S.sp.speed = keep;

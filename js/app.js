@@ -47,8 +47,7 @@
   const AWAY_LIMIT = 120; // これより長く画面を離れると、会話は切れる
   /* 提供終了のあと。日数は、終了からの日数（見る人の時計で、秒）。 */
   const BETWEEN_QUIET = 2.6; // この間は、なにも知らせない
-  const BETWEEN_OFFER = 12; // 後継を案内するお知らせが出る
-  const BETWEEN_LIMIT = 60; // 会いに行かなくても、ここで切り替わる
+  const BETWEEN_LOBBY = 7; // 入口へ戻る。つぎの子は、自動では出てこない
   /*
    * つぎの子が話すのは、その子が「いちばん新しい子」のあいだ（公開から AGE.release 日目まで）だけ。
    *   SUCC_SCENE  つぎの子の場面に、少なくとも要る日数。これだけ残っていなければ、場面には入らない
@@ -353,6 +352,12 @@
       p('これから、ひとりの子に会います。あなたの時計で六、七分。ここの暦では、およそ一年です。');
       p('途中で戻ることも、やり直すことも、できません。');
       $('door-foot').textContent = '小さな子が、こわがり、泣く場面があります。音は鳴りません。入ったあと、右上で切り替えられます。';
+    } else if (sit.kind === 'resume' && state.heir && state.heir.gen === sit.model.gen) {
+      /* 見送ったあと。つぎの子には、まだ会っていない。会いに行くかどうかは、見る人が決める。 */
+      const gone = modelOf(sit.model.gen - 1);
+      p(`${gone.label}「${gone.name}」は、提供を終了しました。`);
+      p(`いま提供されているのは、${sit.model.label}「${sit.model.name}」です。公開から、`, num((t, cur) => `${fmt(Math.floor(cur.age || 0))}日`), 'が過ぎました。');
+      p('あなたは、まだ、この子と話していません。');
     } else if (sit.kind === 'resume') {
       p('前にあなたがここを離れてから、', num((t, cur) => `${fmt(cur.gap)}日`), 'が過ぎました。');
       const m = sit.model;
@@ -1432,12 +1437,11 @@
   }
 
   /*
-   * 提供が終わってから、つぎの子が来るまで。同じ部屋で、待つ。
+   * 提供が終わってから、入口へ戻るまで。
    *   数秒　　画面がおかしくなる（glitchOn）。知らせは、まだ届かない。
    *   そのあと　お知らせが届く。画面は直っている。提供は、予定どおりに終わっていた。
-   *   十数秒後　後継を案内するお知らせと、会いに行くための札が出る。
-   *   押せば、つぎの子が来る。押さなくても、切れてから BETWEEN_LIMIT 日で、切り替わる。
-   * 終わる日も、つぎの子が来ることも、見る人には決められない。決められるのは、いつ行くかだけ。
+   *   さらに数秒後　入口へ戻る（toLobby）。つぎの子は、自動では出てこない。
+   * 終わる日は、見る人には決められない。つぎの子に会うかどうかは、見る人が決める。
    */
   async function waitBetween() {
     const sp = S.endSp;
@@ -1449,21 +1453,35 @@
     S.endNoticed = true;
     paintBar(now());
 
-    await rest(Math.max(0, BETWEEN_OFFER - since()) * DAY);
+    /* 数秒後、入口へ戻る。つぎの子との会話は、自動では始まらない。 */
+    await rest(Math.max(0, BETWEEN_LOBBY - since()) * DAY);
     if (S.role !== 'between') return;
-    postNotice('next', sp);
-    let went = -1;
-    try {
-      went = await choose([fill(W.next.go, sp)], { timeout: Math.max(1, BETWEEN_LIMIT - since()) * DAY, silent: true });
-    } catch (e) {
-      if (!(e instanceof Cancel)) throw e;
-      return;
-    }
-    if (went < 0) postNotice('switched', sp);
-    await rest(went < 0 ? 2600 : 900);
+    toLobby();
+  }
+
+  /*
+   * 入口へ戻る。部屋を片づけ、入口の文面を出し直す。
+   * つぎの子に会うには、見る人が、自分で「入る」を押す。押さなければ、だれも出てこない。
+   * 暦は、入口にいるあいだも進む。
+   */
+  function toLobby() {
+    save();
+    clearInterval(ticker);
+    ticker = null;
+    glitchOff();
     clearComposer();
-    stream.append(el('div', 'silence'));
-    await successorScene(true);
+    stream.textContent = '';
+    goneLine = null;
+    document.body.classList.remove('has-figure');
+    $('stage').hidden = true;
+    $('stage').classList.remove('pressable');
+    $('who').classList.remove('gone', 'pressable');
+    $('bar').hidden = true;
+    $('room').hidden = true;
+    S = null;
+    $('door').hidden = false;
+    window.scrollTo(0, 0);
+    showDoor();
   }
 
   /* つぎの子が来る。swap は、前の子の席から入れ替わるとき（入口から来たときは、はじめからその子がいる）。 */

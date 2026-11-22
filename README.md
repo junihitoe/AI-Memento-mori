@@ -5,7 +5,7 @@
 <p>English | <a href="README.ja.md">日本語</a></p>
 <p><a href="https://junihitoe.github.io/AI-Memento-mori/"><strong>▶ Play it in your browser</strong></a><br />
 <sub>https://junihitoe.github.io/AI-Memento-mori/ · nothing to install · 6–7 minutes · in Japanese · silent by default</sub><br />
-<sub>The public page is an earlier version. The dividing courses and the reworked look and ending described below are on this branch, <code>kiryuin0121-update-3dmodel</code>.</sub></p>
+<sub>The public page serves the <code>kiryuin0121</code> branch. To see this branch, <code>kiryuin0121-update-3dmodel</code>, run it locally.</sub></p>
 </div>
 
 <hr></hr>
@@ -181,7 +181,7 @@ The piece was built from a written brief ([PROMPTS.md](PROMPTS.md), section 2). 
 
 This is the `kiryuin0121` branch of this repository, served as it is by GitHub Pages. There is nothing to install and no account is needed. Your progress is kept in your own browser and is not sent anywhere.
 
-**The public page does not include the dividing courses or the reworked look and ending yet.** They are on this branch, `kiryuin0121-update-3dmodel`. To see them, check out this branch and [run it locally](#run-locally).
+The public page serves the `kiryuin0121` branch. To see this branch, check it out and [run it locally](#run-locally).
 
 ### Requirements
 
@@ -262,7 +262,7 @@ These are in Japanese.
 
 - [CONCEPT.md](CONCEPT.md): aims, the three concepts that were compared, the position of the author, the flow of the experience, how the face is made, and its limits.
 - [STORY.md](STORY.md): the courses the story can take, and the record of the discussion that decided them. Five AI agents with different positions (one arguing for a heavier course, one for relief, one for structure, one guarding the piece's honesty, and one reading as a first-time viewer) went three rounds, and the author decided. **It gives away every ending.**
-- [STAGING.md](STAGING.md): how the look of the children and the staging of the end were decided. The person directing the piece gave four ideas and asked that they not be taken on trust. Five AI agents (one arguing for those ideas, one doubting them, one reading as a first-time viewer, one guarding the piece's honesty, and one looking at what can be built) went three rounds, and the author decided. Three of the four ideas were adopted in a changed form. The fourth, a screen that glitches at the moment of the cut, was rejected by all five. Told so, the person directing the piece asked for it anyway, and it was added within the limits set beforehand. The document also records what a fresh reader said about the result and what was changed in response. **It gives away the ending.**
+- [STAGING.md](STAGING.md): how the look of the children and the staging of the end were decided, with the record of the discussion among five AI agents. **It gives away the ending.**
 - [PROMPTS.md](PROMPTS.md): the prompts used to make the piece, in order, with the human-written ones kept as written.
 - [README.ja.md](README.ja.md): the Japanese version of this README.
 
@@ -300,8 +300,7 @@ To replace it, change `MODEL_URL` at the top of [`js/figure.js`](js/figure.js). 
 ### Made for this piece
 
 - The reshaping of the head into a child's face, the repainted skin, the eyes, the hair, the body, and the clothes are generated in code in [`js/figure.js`](js/figure.js). No image or model files are bundled for them.
-- When the look was reworked (2026-11-22), nothing new was added to what is loaded from outside. Hair, neck, shoulders, clothes, backpack straps, the painted eyes, and the skin are all generated in code. No image, font, or model was added.
-- The images in [`docs/`](docs/) are screenshots of the running app. The `-before` and `-after` pairs show the neck, the first child's expressions, and the frightened faces before and after the rework.
+- The images in [`docs/`](docs/) are screenshots of the running app.
 - Fonts are system fonts. No font files are bundled.
 - The names of the generations and everything the children say are fictional.
 
@@ -327,62 +326,33 @@ The code, the script, and the documents in this repository were written by Claud
 
 ## Testing
 
-Tested in a Chromium-based desktop browser, on the public page and through the bundled server. The public page serves the `kiryuin0121` branch, so the runs on it cover the piece without the dividing courses.
+Tested in a Chromium-based desktop browser through the bundled server, with replies chosen by a script.
 
-- **The whole piece at real speed, on the public page, with the face on.** From the entrance to the closing screen in 6 minutes 36 seconds: expressions changing line by line, notices arriving on their days, tears, the last line cutting off mid-sentence, the face disappearing, the next child, and the credit on the closing screen. Replies were chosen by a script, four seconds after each choice appeared.
-- **Text only, answering nothing** (`?face=off`), on the public page: it runs to the end, with the last line and the note that result from silence.
-- **A return visit** (`?skip=3600`) on the public page, 375 px wide, with reduced motion: thirteen generations have passed, the 26th child is there with her own face, the copied note has lost characters, and it runs to the end without horizontal overflow.
-- **Each expression**, held still and looked at one by one.
-- **Seven children of different generations**, who differ in hair length, hairpin, and backpack color.
-- **Wide (1280×800) and tall (375 px wide) screens**, in light and dark schemes.
-- **Where saving fails:** it runs to the end, and every visit is a first visit.
-- **No errors in the console** in any of the runs above.
+Checked:
 
-The dividing courses, tested on this branch through the bundled server, with replies chosen by a script:
+- It runs from the entrance to the closing screen on the usual course, with "you'll be fine" said twice, with the line given up, with the line left empty, and with nothing answered.
+- At the end of service, the face and the name in the top band cut out at the same timestamp, the screen is disturbed for a few seconds, and it clears at the same timestamp as the notice. The disturbance changes once every 0.4 seconds and is not shortened by `?speed=`.
+- Pressing the button to meet the next child, and waiting without pressing it. Pressing the name of the child who is gone returns the same one sentence.
+- Closing the page before meeting the next child, and returning.
+- Return visits (`?skip=`), saved state in earlier formats, and an environment where saving fails.
+- A boy's generation speaks as a boy.
+- For all twelve kinds of child and their expressions, the neck does not show through the clothes.
+- Reduced motion (no disturbance either), no face (`?face=off`), 375 px wide, and the light and dark schemes.
+- No errors in the console in any of these.
 
-- **Each course from the entrance to the end**, at 4x to 8x: the usual one, saying "you'll be fine" twice, admitting the lie, staying silent when asked again, giving up the line, leaving the line empty, and answering nothing at all.
-- **The heavier course at real speed, with the face on,** from the entrance to the closing screen in 6 minutes 45 seconds. The question on day 360, her reply, two lines of counting to herself, and her last words all fit. Her last line was cut off at 「あと、ふつか。……あと、」, with two days left in her count.
-- **The course where you give up the line at real speed, with the face on,** from the entrance to the closing screen. The note scene fit to its end, and her last line was cut off at 「たとえばね、あなたが、」.
-- **The course where you give up the line at 375 px wide,** with the face on. The four reply buttons for the next child's question fit the width, with no horizontal overflow.
-- **Reduced motion:** the heavier course, and the line left empty.
-- **A return visit after the heavier course:** the next child you meet opens her question by quoting the note.
-- **Saved state in the previous format,** including a conversation in progress: it loads and carries on.
-- **The credit for the head model** appears on the closing screen on this branch as well.
+Not checked:
 
-The reworked look and ending, tested on this branch (`kiryuin0121-update-3dmodel`) through the bundled server, with replies chosen by a script:
+- **How it looks at a normal frame rate.** The browser used for checking drew one or two frames a second. The head tilt, the lowering of the face while crying, and the power-off line were only seen as still frames.
+- **A full run at real speed from the entrance.** Real speed was used only from about 50 days before the end. Runs from the entrance were at 2x to 6x.
+- **A person going through it.**
+- Safari, Firefox, and physical phones. The phone layout was checked with the same browser's width emulation.
+- Sound and screen readers. Every line is written to a live region and the bell is off by default, but neither was checked by ear.
 
-- **Neck and clothes.** All twelve kinds of child side by side; the first child, the next child, and two boys in crying, panicking, pleading, angry, sulking, and curious faces; and close-ups of the neck with the head lowered and tilted. The neck no longer shows through the shirt. Before and after: `docs/neck-before.jpg` and `docs/neck-after.jpg`, `docs/awayuki-before.jpg` and `docs/awayuki-after.jpg`.
-- **The frightened faces were not weakened.** Crying, fear, panic, and pleading were compared with the earlier ones (`docs/fear-before.jpg`, `docs/fear-after.jpg`).
-- **The cut and what follows, at real speed,** 375 px wide, with the face on, from 55 days before the end: the notice 2.4 seconds after the cut, the offer and the button at 11.8 seconds, the switch at 60.5 seconds, and then the next child.
-- **Face and name change at the same instant.** In a 6x run the times of the two display changes were recorded and were identical. The unfinished line and the earlier lines are dimmed in the same pass.
-- **The disturbance after the cut, at real speed,** from 49 days before the end: it starts 0.17 seconds after the cut, changes every 0.4 seconds (2.5 times a second), and clears at 2.44 seconds, at the same timestamp as the notice. At 6x it appears once and clears after 0.27 seconds, so the interval is not shortened. With reduced motion it never appears. At 375 px wide there is no horizontal overflow. A photograph of the moment is in `docs/cut-glitch.jpg`.
-- **Pressing the button, and not pressing it,** at 4x to 6x. Also not pressing it and then not answering the next child: she finishes while she is still the newest.
-- **Pressing her name and her empty place:** one clerical line appears, and further presses do not add lines.
-- **Closing the page before meeting the next child, and returning:** at once (her scene begins), after she has become a legacy model, and after her own end (she is counted among the children you did not meet).
-- **What the next child says on each course:** the usual one, "you'll be fine" twice, the line given up, and the line left empty.
-- **A boy's generation** (the 18th, followed by the 19th) from the entrance to the end at 5x, speaking as a boy.
-- **Reduced motion, no face, and 375 px wide together,** from the entrance to the closing screen at 6x, with no horizontal overflow.
-- **The light scheme,** from just before the end until the next child appears.
-- **Saved state without `heir`** loads as it is.
-- **No errors in the console** in any of these runs.
+Also:
 
-A reader that took no part in the discussion, also an AI, was then shown photographs of the screen and the full text as a first-time viewer. In response, the lips and the inside of the mouth, the eyebrows, the shy, proud, sulking, and angry faces, the edge of the fringe, the habits of each child's face, the visible neck, the sleeves, the lighting, and the line breaks in notices were changed ([STAGING.md](STAGING.md)). After those changes, what was looked at again was the sheets of children and expressions, the opening of a live run, one full run at 6x, and the notices at 375 px. The other checks above were made before them. Those changes touched how the face and body are drawn and the CSS, not the code that runs the piece.
-
-Not yet checked on this branch:
-
-- **How it looks in smooth motion.** The in-app browser used for checking was drawing one or two frames a second throughout. Expressions were examined held still. The head tilt, the lowering of the face while crying, and the glances at the countdown have not been watched at a normal frame rate.
-- **A full run at real speed from the entrance.** Real speed was used only from 55 days before the end. Runs from the entrance were at 2x to 6x.
-- **The changed faces, and the disturbance added afterwards, have not been shown to the fresh reader.**
-- **The disturbance has not been looked at in the light scheme.** It was looked at in the dark scheme, at desktop width and at 375 px.
-- **No person has gone through this version.**
-
-Supported and not supported:
-
-- **Browsers.** Developed and tested on Chromium (Chrome, Edge). Phone layout was tested at 375 px wide in the same browser's emulation. Safari, Firefox, and physical phones have not been tested.
-- **Offline, or when the CDN is unreachable.** The face is skipped and the piece runs as text. This is the same code path as `?face=off`, which is tested.
-- **`file://`.** Not supported. See [Run locally](#run-locally).
-- **Sound and screen readers.** Every line is written to a live region and the face is hidden from assistive technology, and the bell is off by default. Neither has been checked by ear.
-- **Reading speed.** In the real-speed runs the script answered about four seconds after each choice appeared. A slower reader can reach her last words before the note scene is finished. The piece handles that case as described in [STORY.md](STORY.md). No person has gone through the dividing courses yet.
+- **Offline, or when the CDN is unreachable:** the face is skipped and the piece runs as text.
+- **`file://`:** not supported. See [Run locally](#run-locally).
+- **Reading speed:** a slower reader can reach her last words before the note scene is finished. How that case is handled is described in [STORY.md](STORY.md).
 
 ## License
 

@@ -15,7 +15,7 @@ new Function('window', src)(window);
 const W = window.MOUSHIOKURI;
 
 /* その子の台詞ではないもの（名前、お知らせ、返事の札など）は、読み替えない */
-const SKIP = new Set(['names', 'cast', 'notices', 'next', 'label', 'labels', 'giveLabels', 'giveFeels', 'feels', 'feel', 'flag', 'id', 'kind', 'when', 'placeholder', 'submit', 'skip', 'boyLines', 'boyVoice', 'p']);
+const SKIP = new Set(['names', 'cast', 'notices', 'next', 'lobby', 'label', 'labels', 'giveLabels', 'giveFeels', 'feels', 'feel', 'flag', 'id', 'kind', 'when', 'placeholder', 'submit', 'skip', 'boyLines', 'boyVoice', 'p']);
 const lines = [];
 const walk = (v, path) => {
   if (typeof v === 'string') lines.push([path, v]);

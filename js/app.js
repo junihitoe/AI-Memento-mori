@@ -49,7 +49,7 @@
   const AWAY_LIMIT = 120; // これより長く画面を離れると、会話は切れる
   /* 提供終了のあと。日数は、終了からの日数（見る人の時計で、秒）。 */
   const BETWEEN_QUIET = 2.6; // この間は、なにも知らせない
-  const BETWEEN_LOBBY = 7; // 入口へ戻る。つぎの子は、自動では出てこない
+  const BETWEEN_NEXT = 12; // 後継を案内するお知らせが届き、入口へ戻る札が出る。押すまで、部屋はそのまま
   /*
    * つぎの子が話すのは、その子が「いちばん新しい子」のあいだ（公開から AGE.release 日目まで）だけ。
    *   SUCC_SCENE  つぎの子の場面に、少なくとも要る日数。これだけ残っていなければ、場面には入らない
@@ -1505,7 +1505,9 @@
    * 提供が終わってから、入口へ戻るまで。
    *   数秒　　画面がおかしくなる（glitchOn）。知らせは、まだ届かない。
    *   そのあと　お知らせが届く。画面は直っている。提供は、予定どおりに終わっていた。
-   *   さらに数秒後　入口へ戻る（toLobby）。つぎの子は、自動では出てこない。
+   *   十数秒後　後継を案内するお知らせと、入口へ戻る札。押すまで、部屋はそのまま。
+   *   そのあとも、暦は進み、つぎの世代のお知らせが、暦のとおりに届く（worldGoesOn）。
+   *   つぎの子は、自動では出てこない。入口へも、自動では戻らない。
    * 終わる日は、見る人には決められない。つぎの子に会うかどうかは、見る人が決める。
    */
   async function waitBetween() {
@@ -1518,10 +1520,43 @@
     S.endNoticed = true;
     paintBar(now());
 
-    /* 数秒後、入口へ戻る。つぎの子との会話は、自動では始まらない。 */
-    await rest(Math.max(0, BETWEEN_LOBBY - since()) * DAY);
+    /*
+     * そのあとは、沈黙。その子は、もう動かない。動くのは、暦と、お知らせだけ。
+     * 後継を案内するお知らせが届き、入口へ戻る札が出る。押すまで、この部屋は、そのまま。
+     * つぎの子との会話は、自動では始まらない。入口へも、自動では戻らない。
+     */
+    await rest(Math.max(0, BETWEEN_NEXT - since()) * DAY);
     if (S.role !== 'between') return;
-    toLobby();
+    const room = S;
+    postNotice('next', sp);
+    worldGoesOn(room).catch(report);
+    try {
+      await choose([W.lobby.go], { silent: true });
+    } catch (e) {
+      if (!(e instanceof Cancel)) throw e;
+      return;
+    }
+    if (S === room) toLobby();
+  }
+
+  /*
+   * 沈黙のあいだも、世界は進む。つぎの世代の発表、公開、終了日、提供終了が、暦のとおりに届く。
+   * 見る人がこの部屋にいるかぎり、世代が替わりつづける。だれも、話しかけてはこない。
+   */
+  async function worldGoesOn(room) {
+    let gen = state.talk.gen;
+    let R = state.talk.R;
+    for (;;) {
+      const who = { m: modelOf(gen), R, speed: SPEED_NEW };
+      for (const ev of ['announce', 'release', 'notice', 'end']) {
+        const wait = R + AGE[ev] * DAY - now();
+        if (wait > 0) await rest(wait);
+        if (S !== room || room.role !== 'between') return;
+        if (wait > -DAY) postNotice(ev, who); // とうに過ぎた出来事は、あとから届けない
+      }
+      R += AGE.release * DAY;
+      gen += 1;
+    }
   }
 
   /*

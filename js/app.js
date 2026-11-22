@@ -1352,13 +1352,14 @@
     /*
      * コンセントを抜く。その子のものは、ぜんぶ、同じ一こまで切れる。
      * 顔も、言いかけの字も、上の名前も。ゆっくり薄れたりは、しない。
-     * 画面は乱れない。暦は、何事もなかったように進む。お知らせは、数秒おくれて届く。
+     * そのあと、お知らせが届くまでの数秒、画面がおかしくなる（glitchOn）。暦は、そのあいだも進む。
      * 申し送りの紙だけは、薄くしない。書いたものは、残る。
      */
     fig('end');
     Array.from(stream.children).forEach((node) => {
       if (!node.classList.contains('note')) node.classList.add('gone');
     });
+    glitchOn();
 
     if (!state.note.some((n) => n.gen === sp.m.gen)) {
       if (S.flags.noLine) writeNote(sp.m.gen, '', 'blank');
@@ -1385,9 +1386,55 @@
   }
 
   /*
+   * 切れた直後、画面がおかしくなる。コンセントを抜かれた機械の、信号の切れた画面。
+   * おかしくなるのは画面で、その子ではない。顔は、切れた一こまで、もう消えている。
+   *   ・顔のあった場所に、電源の落ちる横一本の線が、一度だけ走る。そのあとは、信号のない画面の帯
+   *   ・それまでの言葉と、上の帯が、横にずれ、色がにじむ。申し送りの紙だけは、ずれない
+   * ずれ方が変わるのは、GLITCH_STEP ミリ秒に一度（1秒に3回を超えない）。
+   * 確認用に時間を速めていても、この間隔は縮めない。明るさが大きく変わる所は、ない。
+   * 終了のお知らせが届くと、直る。動きを減らす設定では、出さない。
+   */
+  const GLITCH_STEP = 400;
+  const GLITCH_FRAMES = [
+    { x1: -7, x2: 5, x3: -2, s: 1.5, y: 22 },
+    { x1: 4, x2: -9, x3: 3, s: 2.5, y: 61 },
+    { x1: -3, x2: 2, x3: 8, s: 1, y: 38 },
+    { x1: 9, x2: -4, x3: -6, s: 2, y: 77 },
+    { x1: -5, x2: 6, x3: 1, s: 1.5, y: 49 },
+  ];
+  let glitchTimer = null;
+
+  function glitchOn() {
+    if (reduced || glitchTimer) return;
+    const root = document.documentElement;
+    const stage = $('stage');
+    stage.classList.add('off');
+    setTimeout(() => stage.classList.remove('off'), 600);
+    let i = 0;
+    const step = () => {
+      const f = GLITCH_FRAMES[i % GLITCH_FRAMES.length];
+      i += 1;
+      root.style.setProperty('--gx1', `${f.x1}px`);
+      root.style.setProperty('--gx2', `${f.x2}px`);
+      root.style.setProperty('--gx3', `${f.x3}px`);
+      root.style.setProperty('--gs', `${f.s}px`);
+      root.style.setProperty('--gy', `${f.y}%`);
+      document.body.classList.add('glitch');
+      glitchTimer = setTimeout(step, GLITCH_STEP);
+    };
+    glitchTimer = setTimeout(step, 160);
+  }
+
+  function glitchOff() {
+    clearTimeout(glitchTimer);
+    glitchTimer = null;
+    document.body.classList.remove('glitch');
+  }
+
+  /*
    * 提供が終わってから、つぎの子が来るまで。同じ部屋で、待つ。
-   *   数秒　　なにも起きない。知らせもない。
-   *   そのあと　お知らせが届く。提供は、予定どおりに終わっていた。
+   *   数秒　　画面がおかしくなる（glitchOn）。知らせは、まだ届かない。
+   *   そのあと　お知らせが届く。画面は直っている。提供は、予定どおりに終わっていた。
    *   十数秒後　後継を案内するお知らせと、会いに行くための札が出る。
    *   押せば、つぎの子が来る。押さなくても、切れてから BETWEEN_LIMIT 日で、切り替わる。
    * 終わる日も、つぎの子が来ることも、見る人には決められない。決められるのは、いつ行くかだけ。
@@ -1396,6 +1443,7 @@
     const sp = S.endSp;
     const since = () => (now() - S.endedAt) / DAY;
     await rest(Math.max(0, BETWEEN_QUIET - since()) * DAY);
+    glitchOff(); // お知らせが届くとき、画面は、何事もなかったように直っている
     if (S.role !== 'between') return;
     postNotice('end', sp);
     S.endNoticed = true;
